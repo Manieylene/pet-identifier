@@ -140,3 +140,5 @@ vite.config.ts.timestamp-*
 
 server.cert
 server.key
+.vercel
+.env*.local
