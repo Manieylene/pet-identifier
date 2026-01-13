@@ -1,6 +1,6 @@
 import { IncomingForm } from "formidable";
-import {processUpload } from '../lib/processUpload.js';
-import { predictImage } from "../../lib/pawIdPredict.js";
+import { processUpload } from "../lib/processUpload.js";
+import { predictImage } from "../lib/pawIdPredict.js";
 
 export const config = {
   api: {
