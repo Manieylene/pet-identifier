@@ -1,57 +1,60 @@
 import { IncomingForm } from "formidable";
-import { processUpload } from "../lib/processUpload.js";
-import { predictImage } from "../lib/pawIdPredict.js";
+import { processUpload } from "../../lib/processUpload";
+import { predictImage } from "../../lib/pawIdPredict";
 
 export const config = {
-  api: { bodyParser: false },
+  api: {
+    bodyParser: false,
+  },
 };
 
-export default function handler(req, res) {
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
+
   const form = new IncomingForm({
     multiples: false,
     keepExtensions: true,
-    uploadDir: "/tmp",
-    filename: (name, ext, part) =>
-      `${Date.now()}-${part.originalFilename}`,
   });
 
-  form.parse(req, async (err, fields, files) => {
-    if (err) {
-      return res.status(400).json({ error: "Form parsing failed." });
+  // Wrap form.parse in a promise
+  const parseForm = () =>
+    new Promise((resolve, reject) => {
+      form.parse(req, (err, fields, files) => {
+        if (err) reject(err);
+        else resolve({ fields, files });
+      });
+    });
+
+  try {
+    const { fields, files } = await parseForm();
+
+    const file = files?.image || null;
+    const base64 = fields?.image || null;
+
+    if (!file && !base64) {
+      return res.status(400).json({ error: "Missing image or base64" });
     }
 
-    try {
-      const file = files?.image;
-      const base64 = fields?.image;
+    // ✅ Upload
+    const uploadResult = await processUpload({ file, base64 });
 
-      if (!file && !base64) {
-        return res.status(400).json({
-          error: "Missing image or base64"
-        });
-      }
-
-      // ✅ Save image (existing logic mo)
-      const uploadResult = await processUpload({ file, base64 });
-
-      // ✅ Paw-ID prediction
-      let pawIdResult = [];
-
-      if (uploadResult?.imagePath) {
-        pawIdResult = await predictImage(uploadResult.imagePath);
-      }
-
-      // ✅ Final response
-      res.json({
-        success: true,
-        upload: uploadResult,
-        pawId: pawIdResult
-      });
-
-    } catch (error) {
-      console.error("Upload API error:", error);
-      res.status(500).json({
-        error: "Internal server error"
-      });
+    if (!uploadResult?.imageUrl) {
+      return res.status(500).json({ error: "Image upload failed" });
     }
-  });
+
+    // ✅ Prediction
+    const pawIdResult = await predictImage(uploadResult.imageUrl);
+
+    return res.status(200).json({
+      success: true,
+      upload: uploadResult,
+      pawId: pawIdResult,
+    });
+
+  } catch (error) {
+    console.error("Upload API error:", error);
+    return res.status(500).json({ error: "Analysis failed" });
+  }
 }
