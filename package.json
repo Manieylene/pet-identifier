@@ -1,4 +1,8 @@
 {
+<<<<<<< HEAD
+  "dependencies": {
+    "roboflow": "^0.2.0"
+=======
   "name": "express-web-app",
   "version": "1.0.0",
   "type": "module",
@@ -27,5 +31,6 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.9"
+>>>>>>> 15a0af1539e80a043884cd381b3fec642a73a022
   }
 }
