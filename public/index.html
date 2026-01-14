@@ -2,67 +2,47 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>PAW-ID • Instant Pet Breed Identifier</title>
 
-  <!-- External CSS -->
+  <!-- Link external CSS -->
   <link rel="stylesheet" href="/styles.css">
-  <link
-    rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-  />
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
-
 <body>
 
-<!-- DETECTION SECTION -->
-<section id="detect" class="detection-section">
+<section class="detection-section" id="detect">
   <h2>Detect PAW-ID</h2>
-  <p class="detect-sub">Upload or capture a photo of your pet</p>
+  <p class="detect-sub">Upload a photo or use your camera to identify your pet’s breed</p>
 
-  <!-- HIDDEN INPUTS -->
-  <input type="file" id="imageInput" accept="image/*" hidden>
-  <input type="file" id="cameraInput" accept="image/*" capture="environment" hidden>
+  <div class="camera-upload">
+    <button id="uploadBtn" class="analyze-btn">Upload Photo</button>
+    <input type="file" id="imageInput" accept="image/*" style="display:none;">
 
-  <!-- IMAGE PREVIEW -->
+    <button id="cameraBtn" class="analyze-btn">Use Camera</button>
+    <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none;">
+  </div>
+
   <div class="image-preview-area">
-    <p id="previewPlaceholder">No image selected</p>
-    <img id="imagePreview" alt="Pet preview" style="display:none;">
+    <span id="previewPlaceholder">No image selected</span>
+    <img id="imagePreview" style="display:none;" />
   </div>
 
-  <!-- ACTION BUTTONS -->
-  <div style="display:flex;justify-content:center;gap:16px;margin-top:20px;">
-    <button type="button" class="analyze-btn" id="uploadBtn">
-      <i class="fas fa-upload"></i> Upload Photo
-    </button>
-
-    <button type="button" class="analyze-btn" id="cameraBtn">
-      <i class="fas fa-camera"></i> Use Camera
-    </button>
-  </div>
-
-  <!-- ANALYZE -->
-  <button
-    type="button"
-    id="analyzeImageBtn"
-    class="analyze-btn"
-    disabled
-    style="margin-top:22px;"
-  >
+  <button id="analyzeImageBtn" class="analyze-btn" disabled>
     <i class="fas fa-search"></i> Analyze Image
   </button>
 </section>
 
-<!-- RESULT CARD -->
 <div id="result-card" class="card hidden">
   <div class="card-header">
     <h2 id="main-breed">Breed</h2>
     <span id="badge" class="badge"></span>
   </div>
-
   <p id="explanation" class="explanation"></p>
   <div id="confidence-list"></div>
 </div>
 
+<script src="/script.js"></script>
 </body>
 </html>
