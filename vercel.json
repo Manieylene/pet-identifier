@@ -4,13 +4,5 @@
       "runtime": "nodejs18.x",
       "maxDuration": 30
     }
-  },
-  "redirects": [
-    { "source": "/", "destination": "/home", "permanent": false }
-  ],
-  "rewrites": [
-    { "source": "/home", "destination": "/index.html" },
-    { "source": "/analytics", "destination": "/analytics.html" },
-    { "source": "/information", "destination": "/information.html" }
-  ]
+  }
 }
