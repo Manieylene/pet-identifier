@@ -1,7 +1,6 @@
 {
-  "functions": {
-    "api/*.js": {
-      "maxDuration": 10
-    }
-  }
+  "builds": [
+    { "src": "index.html", "use": "@vercel/static" },
+    { "src": "api/*.js", "use": "@vercel/node" }
+  ]
 }
