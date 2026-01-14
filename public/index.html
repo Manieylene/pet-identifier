@@ -15,50 +15,45 @@
 
 <body>
 
-<header>
-  <div class="container header-inner">
-    <div class="brand-left">
-      <div class="paw-logo">🐾</div>
-      <a class="brand" href="#">
-        <span class="brand-title">PAW-ID</span>
-        <span class="brand-sub">Instant Pet Breed Identifier</span>
-      </a>
-    </div>
-
-    <nav>
-      <ul>
-        <li><a href="#">Home</a></li>
-        <li><a href="#detect">Detect</a></li>
-      </ul>
-    </nav>
-  </div>
-</header>
-
-<section class="hero-wrap">
-  <div class="hero-card hero-center">
-    <h1>Welcome to PAW-ID</h1>
-    <p class="hero-sub">
-      Upload a photo of your pet and identify its breed instantly.
-    </p>
-  </div>
-</section>
-
+<!-- DETECTION SECTION -->
 <section id="detect" class="detection-section">
   <h2>Detect PAW-ID</h2>
-  <p class="detect-sub">Upload an image of your pet</p>
+  <p class="detect-sub">Upload or capture a photo of your pet</p>
 
+  <!-- HIDDEN INPUTS -->
   <input type="file" id="imageInput" accept="image/*" hidden>
+  <input type="file" id="cameraInput" accept="image/*" capture="environment" hidden>
 
-  <div class="image-preview-area" id="uploadArea">
+  <!-- IMAGE PREVIEW -->
+  <div class="image-preview-area">
     <p id="previewPlaceholder">No image selected</p>
-    <img id="imagePreview" style="display:none;">
+    <img id="imagePreview" alt="Pet preview" style="display:none;">
   </div>
 
-  <button id="analyzeImageBtn" class="analyze-btn" disabled>
+  <!-- ACTION BUTTONS -->
+  <div style="display:flex;justify-content:center;gap:16px;margin-top:20px;">
+    <button type="button" class="analyze-btn" id="uploadBtn">
+      <i class="fas fa-upload"></i> Upload Photo
+    </button>
+
+    <button type="button" class="analyze-btn" id="cameraBtn">
+      <i class="fas fa-camera"></i> Use Camera
+    </button>
+  </div>
+
+  <!-- ANALYZE -->
+  <button
+    type="button"
+    id="analyzeImageBtn"
+    class="analyze-btn"
+    disabled
+    style="margin-top:22px;"
+  >
     <i class="fas fa-search"></i> Analyze Image
   </button>
 </section>
 
+<!-- RESULT CARD -->
 <div id="result-card" class="card hidden">
   <div class="card-header">
     <h2 id="main-breed">Breed</h2>
@@ -68,98 +63,6 @@
   <p id="explanation" class="explanation"></p>
   <div id="confidence-list"></div>
 </div>
-
-<script>
-const imageInput = document.getElementById("imageInput");
-const imagePreview = document.getElementById("imagePreview");
-const analyzeBtn = document.getElementById("analyzeImageBtn");
-const uploadArea = document.getElementById("uploadArea");
-const placeholder = document.getElementById("previewPlaceholder");
-
-let currentFile = null;
-
-// click upload area
-uploadArea.addEventListener("click", () => imageInput.click());
-
-// preview
-imageInput.addEventListener("change", () => {
-  const file = imageInput.files[0];
-  if (!file) return;
-
-  currentFile = file;
-  const reader = new FileReader();
-
-  reader.onload = e => {
-    imagePreview.src = e.target.result;
-    imagePreview.style.display = "block";
-    placeholder.style.display = "none";
-    analyzeBtn.disabled = false;
-  };
-
-  reader.readAsDataURL(file);
-});
-
-// analyze
-analyzeBtn.addEventListener("click", async () => {
-  if (!currentFile) return;
-
-  analyzeBtn.disabled = true;
-  analyzeBtn.textContent = "Analyzing...";
-
-  try {
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: reader.result })
-      });
-
-      const data = await res.json();
-      renderResult(data);
-    };
-    reader.readAsDataURL(currentFile);
-  } catch (e) {
-    alert("Analysis failed");
-  } finally {
-    analyzeBtn.disabled = false;
-    analyzeBtn.innerHTML = '<i class="fas fa-search"></i> Analyze Image';
-  }
-});
-
-function renderResult(data) {
-  const card = document.getElementById("result-card");
-  const mainBreed = document.getElementById("main-breed");
-  const badge = document.getElementById("badge");
-  const explanation = document.getElementById("explanation");
-  const list = document.getElementById("confidence-list");
-
-  card.classList.remove("hidden");
-  list.innerHTML = "";
-
-  const preds = data.predictions || [];
-  if (!preds.length) return;
-
-  const top = preds[0];
-  mainBreed.textContent = top.class;
-  badge.textContent = preds.length > 1 ? "MIXED BREED" : "PURE";
-  badge.className = preds.length > 1 ? "badge mixed" : "badge pure";
-
-  explanation.textContent = "Detected breed confidence levels:";
-
-  preds.forEach(p => {
-    const percent = (p.confidence * 100).toFixed(1);
-    list.innerHTML += `
-      <div class="breed-row">
-        <strong>${p.class} (${percent}%)</strong>
-        <div class="progress">
-          <div class="progress-bar" style="width:${percent}%"></div>
-        </div>
-      </div>
-    `;
-  });
-}
-</script>
 
 </body>
 </html>
