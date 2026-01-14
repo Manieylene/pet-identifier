@@ -3,7 +3,6 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "cors": "^2.8.5",
-    "roboflow": "^1.1.0"
+    "roboflow": "^0.2.0"
   }
 }
