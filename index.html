@@ -5,11 +5,13 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>PAW-ID • Instant Pet Breed Identifier</title>
 
+  <!-- Link sa external CSS -->
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet"
     href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
   <style>
+    /* RESULT CARD STYLES */
     .card {
       max-width: 420px;
       background: #fff;
@@ -39,6 +41,31 @@
     .progress { height: 10px; background: #eee; border-radius: 10px; overflow: hidden; }
     .progress-bar { height: 100%; background: #4f46e5; }
     #confidenceChart { width: 100%; margin-top:12px; }
+    #detect {
+      max-width: 500px;
+      margin: 20px auto;
+      text-align: center;
+    }
+    #imagePreview {
+      max-width: 100%;
+      border-radius: 12px;
+      margin-top: 10px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    #analyzeImageBtn {
+      padding: 10px 20px;
+      font-size: 16px;
+      margin-top: 15px;
+      cursor: pointer;
+      border-radius: 8px;
+      border: none;
+      background-color: #4f46e5;
+      color: white;
+    }
+    #analyzeImageBtn:disabled {
+      background-color: #999;
+      cursor: not-allowed;
+    }
   </style>
 </head>
 
@@ -46,12 +73,11 @@
 
 <section id="detect">
   <h2>Detect PAW-ID</h2>
-
   <input type="file" id="imageInput" accept="image/*" />
 
-  <img id="imagePreview" style="max-width:300px; display:none; margin-top:10px" />
+  <img id="imagePreview" style="display:none;" />
 
-  <br><br>
+  <br>
   <button id="analyzeImageBtn" disabled>
     <i class="fas fa-search"></i> Analyze Image
   </button>
@@ -73,7 +99,7 @@ const analyzeBtn = document.getElementById("analyzeImageBtn");
 
 let currentFile = null;
 
-// PREVIEW IMAGE
+// IMAGE PREVIEW
 imageInput.addEventListener("change", () => {
   const file = imageInput.files[0];
   if (!file) return;
@@ -90,7 +116,7 @@ imageInput.addEventListener("change", () => {
   reader.readAsDataURL(file);
 });
 
-// SEND BASE64 IMAGE
+// SEND IMAGE TO SERVER
 analyzeBtn.addEventListener("click", async () => {
   if (!currentFile) return;
 
