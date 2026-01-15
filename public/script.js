@@ -25,7 +25,6 @@ document.addEventListener("DOMContentLoaded", () => {
     reader.readAsDataURL(file);
   });
 
-
   analyzeBtn.addEventListener("click", async () => {
     if (!currentFile) return;
 
@@ -41,9 +40,9 @@ document.addEventListener("DOMContentLoaded", () => {
           body: JSON.stringify({ image: reader.result })
         });
 
-        if (!res.ok) throw new Error("API request failed");
-
         const data = await res.json();
+        if (!res.ok) throw new Error(data?.error || "API request failed");
+
         renderResult(data);
       };
 
@@ -56,7 +55,6 @@ document.addEventListener("DOMContentLoaded", () => {
       analyzeBtn.innerHTML = '<i class="fas fa-search"></i> Analyze Image';
     }
   });
-
 
   function renderResult(data) {
     const card = document.getElementById("result-card");
@@ -73,26 +71,36 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!preds.length) {
       mainBreed.textContent = "Unknown";
       badge.textContent = "NO DATA";
+      badge.className = "badge mixed";
       explanation.textContent = "No breed detected.";
       return;
     }
 
     const top = preds[0];
     mainBreed.textContent = top.class;
-    badge.textContent = preds.length > 1 ? "MIXED BREED" : "PURE";
-    badge.className = preds.length > 1 ? "badge mixed" : "badge pure";
-    explanation.textContent = "Detected breed confidence levels:";
 
-    preds.forEach(p => {
+    // Mixed-looking rule: 2+ breeds >= 20%
+    const strong = preds.filter(p => p.confidence >= 0.20);
+    const isMixed = strong.length > 1;
+
+    badge.textContent = isMixed ? "POSSIBLE MIX" : "TOP MATCH";
+    badge.className = isMixed ? "badge mixed" : "badge pure";
+    explanation.textContent = "Top breed look-alikes (confidence):";
+
+    preds.forEach((p, idx) => {
       const percent = (p.confidence * 100).toFixed(1);
+
       const row = document.createElement("div");
       row.className = "breed-row";
+      row.style.setProperty("--row-index", idx);
+
       row.innerHTML = `
         <strong>${p.class} (${percent}%)</strong>
         <div class="progress">
           <div class="progress-bar" style="width:${percent}%"></div>
         </div>
       `;
+
       list.appendChild(row);
     });
   }
