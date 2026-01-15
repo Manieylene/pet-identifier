@@ -9,7 +9,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let currentFile = null;
 
-  // Upload button triggers hidden file input
+  // ================================
+  // 📤 UPLOAD / CAMERA
+  // ================================
   uploadBtn.addEventListener("click", () => imageInput.click());
   cameraBtn.addEventListener("click", () => cameraInput.click());
 
@@ -18,8 +20,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!file) return;
 
     currentFile = file;
+
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = e => {
       imagePreview.src = e.target.result;
       imagePreview.style.display = "block";
       previewPlaceholder.style.display = "none";
@@ -31,12 +34,14 @@ document.addEventListener("DOMContentLoaded", () => {
   imageInput.addEventListener("change", () => handleFile(imageInput));
   cameraInput.addEventListener("change", () => handleFile(cameraInput));
 
-  // Analyze Image
+  // ================================
+  // 🔍 ANALYZE IMAGE
+  // ================================
   analyzeBtn.addEventListener("click", async () => {
     if (!currentFile) return;
 
     analyzeBtn.disabled = true;
-    analyzeBtn.innerText = "Analyzing...";
+    analyzeBtn.textContent = "Analyzing...";
 
     try {
       const reader = new FileReader();
@@ -49,23 +54,28 @@ document.addEventListener("DOMContentLoaded", () => {
           body: JSON.stringify({ image: base64Image })
         });
 
-        if (!res.ok) throw new Error("Upload failed");
+        if (!res.ok) {
+          throw new Error("API request failed");
+        }
 
         const data = await res.json();
         renderResult(data);
       };
+
       reader.readAsDataURL(currentFile);
 
     } catch (err) {
+      console.error("❌ Analysis error:", err);
       alert("Analysis failed");
-      console.error(err);
     } finally {
       analyzeBtn.disabled = false;
       analyzeBtn.innerHTML = '<i class="fas fa-search"></i> Analyze Image';
     }
   });
 
-  // Render Result
+  // ================================
+  // 📊 RENDER RESULT
+  // ================================
   function renderResult(data) {
     const card = document.getElementById("result-card");
     const mainBreed = document.getElementById("main-breed");
@@ -86,6 +96,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const top = preds[0];
+
     mainBreed.textContent = top.class;
     badge.textContent = preds.length > 1 ? "MIXED BREED" : "PURE";
     badge.className = preds.length > 1 ? "badge mixed" : "badge pure";
@@ -94,6 +105,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     preds.forEach(p => {
       const percent = (p.confidence * 100).toFixed(1);
+
       const row = document.createElement("div");
       row.className = "breed-row";
       row.innerHTML = `

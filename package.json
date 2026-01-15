@@ -2,7 +2,8 @@
   "name": "g5-paw-id-identifier",
   "private": true,
   "type": "module",
-  "dependencies": {
-    "roboflow": "^0.2.0"
+  "scripts": {
+    "dev": "vercel dev",
+    "start": "vercel dev"
   }
 }
