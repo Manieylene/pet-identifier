@@ -8,7 +8,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let currentFile = null;
 
   // ================================
-  // 📤 UPLOAD FUNCTIONALITY
+  // 📤 UPLOAD ONLY
   // ================================
   uploadBtn.addEventListener("click", () => imageInput.click());
 
@@ -35,32 +35,27 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!currentFile) return;
 
     analyzeBtn.disabled = true;
-    analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+    analyzeBtn.textContent = "Analyzing...";
 
     try {
       const reader = new FileReader();
       reader.onload = async () => {
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        // Mock data for demonstration
-        const mockData = {
-          predictions: [
-            { class: "Golden Retriever", confidence: 0.95 },
-            { class: "Labrador Retriever", confidence: 0.82 },
-            { class: "German Shepherd", confidence: 0.45 },
-            { class: "Border Collie", confidence: 0.32 },
-            { class: "Siberian Husky", confidence: 0.28 }
-          ]
-        };
-        
-        renderResult(mockData);
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: reader.result })
+        });
+
+        if (!res.ok) throw new Error("API request failed");
+
+        const data = await res.json();
+        renderResult(data);
       };
 
       reader.readAsDataURL(currentFile);
     } catch (err) {
       console.error(err);
-      alert("Analysis failed. Please try again.");
+      alert("Analysis failed");
     } finally {
       analyzeBtn.disabled = false;
       analyzeBtn.innerHTML = '<i class="fas fa-search"></i> Analyze Image';
@@ -85,7 +80,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!preds.length) {
       mainBreed.textContent = "Unknown";
       badge.textContent = "NO DATA";
-      explanation.textContent = "No breed detected in the uploaded image.";
+      explanation.textContent = "No breed detected.";
       return;
     }
 
@@ -95,7 +90,7 @@ document.addEventListener("DOMContentLoaded", () => {
     badge.className = preds.length > 1 ? "badge mixed" : "badge pure";
     explanation.textContent = "Detected breed confidence levels:";
 
-    preds.forEach((p, index) => {
+    preds.forEach(p => {
       const percent = (p.confidence * 100).toFixed(1);
       const row = document.createElement("div");
       row.className = "breed-row";
@@ -106,12 +101,6 @@ document.addEventListener("DOMContentLoaded", () => {
         </div>
       `;
       list.appendChild(row);
-      
-      // Trigger animation
-      setTimeout(() => {
-        row.style.opacity = "1";
-        row.style.transform = "translateY(0)";
-      }, index * 100);
     });
   }
 });
