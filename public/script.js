@@ -7,8 +7,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let currentFile = null;
 
+  // Upload button
   uploadBtn.addEventListener("click", () => imageInput.click());
 
+  // Handle image selection
   imageInput.addEventListener("change", () => {
     const file = imageInput.files[0];
     if (!file) return;
@@ -25,16 +27,16 @@ document.addEventListener("DOMContentLoaded", () => {
     reader.readAsDataURL(file);
   });
 
-
-  analyzeBtn.addEventListener("click", async () => {
+  // Analyze Image (FIXED ASYNC FLOW)
+  analyzeBtn.addEventListener("click", () => {
     if (!currentFile) return;
 
     analyzeBtn.disabled = true;
     analyzeBtn.textContent = "Analyzing...";
 
-    try {
-      const reader = new FileReader();
-      reader.onload = async () => {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
         const res = await fetch("/api/upload", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -45,19 +47,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const data = await res.json();
         renderResult(data);
-      };
+      } catch (err) {
+        console.error("❌ Analysis error:", err);
+        alert("Analysis failed");
+      } finally {
+        analyzeBtn.disabled = false;
+        analyzeBtn.innerHTML =
+          '<i class="fas fa-search"></i> Analyze Image';
+      }
+    };
 
-      reader.readAsDataURL(currentFile);
-    } catch (err) {
-      console.error(err);
-      alert("Analysis failed");
-    } finally {
-      analyzeBtn.disabled = false;
-      analyzeBtn.innerHTML = '<i class="fas fa-search"></i> Analyze Image';
-    }
+    reader.readAsDataURL(currentFile);
   });
 
-
+  // Render result
   function renderResult(data) {
     const card = document.getElementById("result-card");
     const mainBreed = document.getElementById("main-breed");
