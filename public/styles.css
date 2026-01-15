@@ -56,34 +56,8 @@ body {
   font-size: 1.2rem;
   opacity: 0.95;
   max-width: 600px;
-  margin: 0 auto 40px;
+  margin: 0 auto;
   line-height: 1.8;
-}
-
-.hero-stats {
-  display: flex;
-  justify-content: center;
-  gap: 60px;
-  margin-top: 50px;
-  flex-wrap: wrap;
-}
-
-.stat-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.stat-number {
-  font-size: 2.5rem;
-  font-weight: 700;
-  margin-bottom: 8px;
-}
-
-.stat-label {
-  font-size: 1rem;
-  opacity: 0.9;
-  font-weight: 500;
 }
 
 /* Hero Decoration */
@@ -330,7 +304,6 @@ body {
   padding: 50px;
   box-shadow: var(--shadow-lg);
   border: 1px solid rgba(0, 0, 0, 0.05);
-  animation: slideUp 0.5s ease;
 }
 
 @keyframes slideUp {
@@ -394,6 +367,9 @@ body {
 
 .breed-row {
   margin-bottom: 25px;
+  animation: slideUp 0.5s ease forwards;
+  opacity: 0;
+  animation-delay: calc(var(--row-index, 0) * 0.1s);
 }
 
 .breed-row strong {
@@ -470,14 +446,6 @@ body {
   
   .hero-subtitle {
     font-size: 1.1rem;
-  }
-  
-  .hero-stats {
-    gap: 40px;
-  }
-  
-  .stat-number {
-    font-size: 2rem;
   }
   
   .upload-card {
