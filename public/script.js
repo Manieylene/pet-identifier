@@ -1,8 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
   const uploadBtn = document.getElementById("uploadBtn");
-  const cameraBtn = document.getElementById("cameraBtn");
   const imageInput = document.getElementById("imageInput");
-  const cameraInput = document.getElementById("cameraInput");
   const imagePreview = document.getElementById("imagePreview");
   const previewPlaceholder = document.getElementById("previewPlaceholder");
   const analyzeBtn = document.getElementById("analyzeImageBtn");
@@ -10,13 +8,12 @@ document.addEventListener("DOMContentLoaded", () => {
   let currentFile = null;
 
   // ================================
-  // 📤 UPLOAD / CAMERA
+  // 📤 UPLOAD ONLY
   // ================================
   uploadBtn.addEventListener("click", () => imageInput.click());
-  cameraBtn.addEventListener("click", () => cameraInput.click());
 
-  function handleFile(input) {
-    const file = input.files[0];
+  imageInput.addEventListener("change", () => {
+    const file = imageInput.files[0];
     if (!file) return;
 
     currentFile = file;
@@ -29,10 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
       analyzeBtn.disabled = false;
     };
     reader.readAsDataURL(file);
-  }
-
-  imageInput.addEventListener("change", () => handleFile(imageInput));
-  cameraInput.addEventListener("change", () => handleFile(cameraInput));
+  });
 
   // ================================
   // 🔍 ANALYZE IMAGE
@@ -46,26 +40,21 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const reader = new FileReader();
       reader.onload = async () => {
-        const base64Image = reader.result;
-
         const res = await fetch("/api/upload", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image: base64Image })
+          body: JSON.stringify({ image: reader.result })
         });
 
-        if (!res.ok) {
-          throw new Error("API request failed");
-        }
+        if (!res.ok) throw new Error("API request failed");
 
         const data = await res.json();
         renderResult(data);
       };
 
       reader.readAsDataURL(currentFile);
-
     } catch (err) {
-      console.error("❌ Analysis error:", err);
+      console.error(err);
       alert("Analysis failed");
     } finally {
       analyzeBtn.disabled = false;
@@ -96,16 +85,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const top = preds[0];
-
     mainBreed.textContent = top.class;
     badge.textContent = preds.length > 1 ? "MIXED BREED" : "PURE";
     badge.className = preds.length > 1 ? "badge mixed" : "badge pure";
-
     explanation.textContent = "Detected breed confidence levels:";
 
     preds.forEach(p => {
       const percent = (p.confidence * 100).toFixed(1);
-
       const row = document.createElement("div");
       row.className = "breed-row";
       row.innerHTML = `
