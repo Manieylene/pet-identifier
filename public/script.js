@@ -7,9 +7,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let currentFile = null;
 
-  // ================================
-  // 📤 UPLOAD ONLY
-  // ================================
   uploadBtn.addEventListener("click", () => imageInput.click());
 
   imageInput.addEventListener("change", () => {
@@ -28,9 +25,7 @@ document.addEventListener("DOMContentLoaded", () => {
     reader.readAsDataURL(file);
   });
 
-  // ================================
-  // 🔍 ANALYZE IMAGE
-  // ================================
+
   analyzeBtn.addEventListener("click", async () => {
     if (!currentFile) return;
 
@@ -62,9 +57,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // ================================
-  // 📊 RENDER RESULT
-  // ================================
+
   function renderResult(data) {
     const card = document.getElementById("result-card");
     const mainBreed = document.getElementById("main-breed");
