@@ -29,7 +29,7 @@ export default async function handler(req, res) {
     const cleanBase64 = image.replace(/^data:image\/\w+;base64,/, "");
 
     // 🚀 Roboflow REST API
-    const endpoint = `https://detect.roboflow.com/${MODEL_ID}?api_key=${API_KEY}`;
+    const endpoint = `https://classify.roboflow.com/${MODEL_ID}?api_key=${API_KEY}`;
 
     const rfRes = await fetch(endpoint, {
       method: "POST",
