@@ -1,5 +1,3 @@
-import Roboflow from "roboflow";
-
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -12,24 +10,32 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "No image provided" });
     }
 
-    const rf = new Roboflow({
-      apiKey: process.env.ROBOFLOW_API_KEY
+    // linisin ang base64 prefix
+    const cleanBase64 = image.replace(
+      /^data:image\/\w+;base64,/,
+      ""
+    );
+
+    const endpoint = `https://detect.roboflow.com/g5-paw-id/1?api_key=${process.env.ROBOFLOW_API_KEY}`;
+
+    const rfRes = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: cleanBase64
     });
 
-    const project = rf
-      .workspace("polytechnic-university-of-the-philippines-fiuei")
-      .project("g5-paw-id");
+    if (!rfRes.ok) {
+      throw new Error("Roboflow request failed");
+    }
 
-    const model = project.version(1);
+    const data = await rfRes.json();
 
-    const prediction = await model.classify({
-      image: image
-    });
-
-    return res.status(200).json(prediction);
+    return res.status(200).json(data);
 
   } catch (err) {
-    console.error("ROBOFLOW ERROR:", err);
+    console.error("UPLOAD ERROR:", err);
     return res.status(500).json({ error: "Analysis failed" });
   }
 }
