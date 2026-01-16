@@ -74,6 +74,28 @@ export default async function handler(req, res) {
     const data = JSON.parse(text);
     const predictions = normalizePredictions(data);
 
+    // ✅ OPTION A: Unknown / Not-a-Dog decision using thresholds
+    // Tune these if needed:
+    const TOP_MIN = 0.35; // if top < 35% => likely not a dog / unclear image
+    const GAP_MIN = 0.12; // if top-second < 12% => ambiguous
+
+    const top = predictions[0] || { confidence: 0 };
+    const second = predictions[1] || { confidence: 0 };
+
+    const isUnknown =
+      top.confidence < TOP_MIN ||
+      (top.confidence - second.confidence) < GAP_MIN;
+
+    if (isUnknown) {
+      return res.status(200).json({
+        success: true,
+        type: "dog",
+        isUnknown: true,
+        possibleMix: false,
+        predictions: []
+      });
+    }
+
     // Mixed-looking rule: 2+ breeds >= 20%
     const strong = predictions.filter(p => p.confidence >= 0.20);
     const possibleMix = strong.length > 1;
@@ -81,6 +103,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       success: true,
       type: "dog",
+      isUnknown: false,
       possibleMix,
       predictions
     });

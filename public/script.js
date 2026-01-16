@@ -66,6 +66,15 @@ document.addEventListener("DOMContentLoaded", () => {
     card.classList.remove("hidden");
     list.innerHTML = "";
 
+    // ✅ OPTION A: Unknown / Not-a-Dog UI
+    if (data.isUnknown) {
+      mainBreed.textContent = "Unknown / Not a Dog";
+      badge.textContent = "NO DOG DETECTED";
+      badge.className = "badge mixed";
+      explanation.textContent = "Please upload a clear photo of a dog (face or full body).";
+      return;
+    }
+
     const preds = data.predictions || [];
 
     if (!preds.length) {
@@ -83,8 +92,7 @@ document.addEventListener("DOMContentLoaded", () => {
     badge.textContent = isMixed ? "POSSIBLE MIX" : "TOP MATCH";
     badge.className = isMixed ? "badge mixed" : "badge pure";
 
-    const petType = data.type ? data.type.toUpperCase() : "PET";
-    explanation.textContent = `${petType} • Top breed look-alikes (confidence):`;
+    explanation.textContent = "Top breed look-alikes (confidence):";
 
     preds.forEach((p, idx) => {
       const percent = (p.confidence * 100).toFixed(1);
