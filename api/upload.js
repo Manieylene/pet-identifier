@@ -10,9 +10,9 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "No image provided" });
     }
 
-    const API_KEY = process.env.ROBOFLOW_API_KEY;
-    const DOG_MODEL_ID = process.env.ROBOFLOW_DOG_MODEL_ID;
-    const CAT_MODEL_ID = process.env.ROBOFLOW_CAT_MODEL_ID;
+    const API_KEY = process.env.fBSyrKCgiIIGPwkaYvlR;
+    const DOG_MODEL_ID = process.env.g5-pet-breed-identifier/1;
+    const CAT_MODEL_ID = process.env.g5-pet-breed-identifier-cat/1;
 
     if (!API_KEY || !DOG_MODEL_ID || !CAT_MODEL_ID) {
       return res.status(500).json({
