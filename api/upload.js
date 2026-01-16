@@ -11,11 +11,18 @@ export default async function handler(req, res) {
     }
 
     const API_KEY = process.env.ROBOFLOW_API_KEY;
-    const DOG_MODEL_ID = process.env.ROBOFLOW_DOG_MODEL_ID; // g5-pet-breed-identifier/1
-    const CAT_MODEL_ID = process.env.ROBOFLOW_CAT_MODEL_ID; // g5-pet-breed-identifier-cat/1
+    const DOG_MODEL_ID = process.env.ROBOFLOW_DOG_MODEL_ID;
+    const CAT_MODEL_ID = process.env.ROBOFLOW_CAT_MODEL_ID;
 
     if (!API_KEY || !DOG_MODEL_ID || !CAT_MODEL_ID) {
-      return res.status(500).json({ error: "Missing Roboflow env vars" });
+      return res.status(500).json({
+        error: "Missing Roboflow env vars",
+        missing: {
+          ROBOFLOW_API_KEY: !API_KEY,
+          ROBOFLOW_DOG_MODEL_ID: !DOG_MODEL_ID,
+          ROBOFLOW_CAT_MODEL_ID: !CAT_MODEL_ID
+        }
+      });
     }
 
     const cleanBase64 = image.replace(/^data:image\/\w+;base64,/, "");
@@ -23,11 +30,10 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Invalid image data" });
     }
 
-    function normalizeRoboflowPredictions(data) {
-      // Goal: return [{class, confidence}, ...] sorted desc
+    function normalizePredictions(data) {
       let preds = [];
 
-      // Case A: predictions is ARRAY: [{class, confidence}, ...]
+      // A) predictions is ARRAY: [{class, confidence}, ...]
       if (Array.isArray(data?.predictions)) {
         preds = data.predictions
           .map(p => ({
@@ -36,24 +42,19 @@ export default async function handler(req, res) {
           }))
           .filter(p => p.class);
       }
-
-      // Case B: predictions is OBJECT: {breed: prob, ...}
+      // B) predictions is OBJECT: { "breed": 0.62, ... }
       else if (data?.predictions && typeof data.predictions === "object") {
         preds = Object.entries(data.predictions).map(([breed, conf]) => ({
           class: breed,
           confidence: Number(conf) || 0
         }));
       }
-
-      // Case C: top/confidence only
+      // C) top-only format
       else if (data?.top) {
-        preds = [{
-          class: data.top,
-          confidence: Number(data.confidence) || 0
-        }];
+        preds = [{ class: data.top, confidence: Number(data.confidence) || 0 }];
       }
 
-      return preds.sort((a, b) => b.confidence - a.confidence);
+      return preds.sort((a, b) => b.confidence - a.confidence).slice(0, 5);
     }
 
     async function classify(modelId) {
@@ -66,30 +67,48 @@ export default async function handler(req, res) {
       });
 
       const text = await rfRes.text();
-      if (!rfRes.ok) throw new Error(text.slice(0, 300));
+      if (!rfRes.ok) {
+        return {
+          ok: false,
+          error: text.slice(0, 300),
+          predictions: [],
+          topConfidence: 0,
+          rawKeys: []
+        };
+      }
 
       const data = JSON.parse(text);
-
-      const predictions = normalizeRoboflowPredictions(data).slice(0, 5);
+      const predictions = normalizePredictions(data);
       const topConfidence = predictions[0]?.confidence || 0;
 
-      return { predictions, topConfidence };
+      return {
+        ok: true,
+        predictions,
+        topConfidence,
+        rawKeys: Object.keys(data || {})
+      };
     }
 
-    // Run both models
-    const [dog, cat] = await Promise.all([
+    // call both models
+    const [dogRes, catRes] = await Promise.all([
       classify(DOG_MODEL_ID),
       classify(CAT_MODEL_ID)
     ]);
 
-    // Pick higher confidence
-    const type = dog.topConfidence >= cat.topConfidence ? "dog" : "cat";
-    const finalPreds = type === "dog" ? dog.predictions : cat.predictions;
+    // pick winner by confidence
+    const type = dogRes.topConfidence >= catRes.topConfidence ? "dog" : "cat";
+    const finalPreds = type === "dog" ? dogRes.predictions : catRes.predictions;
+
+    // Mixed-looking rule (optional): 2+ breeds >= 20%
+    const strong = finalPreds.filter(p => p.confidence >= 0.20);
+    const possibleMix = strong.length > 1;
 
     return res.status(200).json({
       success: true,
-      type,
+      type,              // "dog" or "cat"
+      possibleMix,       // true/false
       predictions: finalPreds
+      // If you want debug back, tell me and I'll add it again
     });
   } catch (err) {
     console.error("❌ PAW-ID ERROR:", err);

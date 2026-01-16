@@ -79,17 +79,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const top = preds[0];
     mainBreed.textContent = top.class;
 
-    // Mixed-looking rule: 2+ breeds >= 20%
-    const strong = preds.filter(p => p.confidence >= 0.20);
-    const isMixed = strong.length > 1;
-
+    const isMixed = !!data.possibleMix;
     badge.textContent = isMixed ? "POSSIBLE MIX" : "TOP MATCH";
     badge.className = isMixed ? "badge mixed" : "badge pure";
-    explanation.textContent = "Top breed look-alikes (confidence):";
+
+    const petType = data.type ? data.type.toUpperCase() : "PET";
+    explanation.textContent = `${petType} • Top breed look-alikes (confidence):`;
 
     preds.forEach((p, idx) => {
       const percent = (p.confidence * 100).toFixed(1);
-
       const row = document.createElement("div");
       row.className = "breed-row";
       row.style.setProperty("--row-index", idx);
@@ -100,7 +98,6 @@ document.addEventListener("DOMContentLoaded", () => {
           <div class="progress-bar" style="width:${percent}%"></div>
         </div>
       `;
-
       list.appendChild(row);
     });
   }
