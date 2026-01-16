@@ -11,9 +11,10 @@ export default async function handler(req, res) {
     }
 
     const API_KEY = process.env.ROBOFLOW_API_KEY;
-    const MODEL_ID = process.env.ROBOFLOW_MODEL_ID; // e.g. "g5-paw-id/1"
+    const DOG_MODEL_ID = process.env.ROBOFLOW_DOG_MODEL_ID; // g5-pet-breed-identifier/1
+    const CAT_MODEL_ID = process.env.ROBOFLOW_CAT_MODEL_ID; // g5-pet-breed-identifier-cat/1
 
-    if (!API_KEY || !MODEL_ID) {
+    if (!API_KEY || !DOG_MODEL_ID || !CAT_MODEL_ID) {
       return res.status(500).json({ error: "Missing Roboflow env vars" });
     }
 
@@ -22,61 +23,55 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Invalid image data" });
     }
 
-    const endpoint = `https://classify.roboflow.com/${MODEL_ID}?api_key=${API_KEY}`;
+    async function classify(modelId) {
+      const endpoint = `https://classify.roboflow.com/${modelId}?api_key=${API_KEY}`;
 
-    const rfRes = await fetch(endpoint, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: cleanBase64
-    });
+      const rfRes = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: cleanBase64
+      });
 
-    const text = await rfRes.text();
-    if (!rfRes.ok) {
-      return res.status(502).json({ error: "Roboflow failed", details: text.slice(0, 300) });
-    }
+      const text = await rfRes.text();
+      if (!rfRes.ok) {
+        throw new Error(text.slice(0, 300));
+      }
 
-    const data = JSON.parse(text);
+      const data = JSON.parse(text);
 
-    // ---- ROBUST PARSING (handles multiple Roboflow formats) ----
-    let predictions = [];
+      // Roboflow classification commonly returns:
+      // { predictions: { "breedA": 0.62, "breedB": 0.21, ... } }
+      const predsObj = (data && data.predictions && typeof data.predictions === "object")
+        ? data.predictions
+        : {};
 
-    // Format A: predictions is an array: [{ class, confidence }, ...]
-    if (Array.isArray(data.predictions)) {
-      predictions = data.predictions
-        .map(p => ({
-          class: p.class ?? p.label ?? p.name,
-          confidence: Number(p.confidence ?? p.probability ?? p.score) || 0
-        }))
-        .filter(p => p.class);
-    }
-
-    // Format B: predictions is an object: { "breed": 0.62, "breed2": 0.21 }
-    else if (data.predictions && typeof data.predictions === "object") {
-      predictions = Object.entries(data.predictions)
-        .map(([breed, conf]) => ({
+      const predictions = Object.entries(predsObj)
+        .map(([breed, confidence]) => ({
           class: breed,
-          confidence: Number(conf) || 0
-        }));
+          confidence: Number(confidence) || 0
+        }))
+        .sort((a, b) => b.confidence - a.confidence)
+        .slice(0, 5);
+
+      const topConfidence = predictions[0]?.confidence || 0;
+
+      return { predictions, topConfidence };
     }
 
-    // Format C: top + confidence only (single top)
-    else if (data.top) {
-      predictions = [{
-        class: data.top,
-        confidence: Number(data.confidence) || 0
-      }];
-    }
+    // Run both models (dog + cat)
+    const [dog, cat] = await Promise.all([
+      classify(DOG_MODEL_ID),
+      classify(CAT_MODEL_ID)
+    ]);
 
-    // Sort + top N
-    predictions = predictions
-      .sort((a, b) => b.confidence - a.confidence)
-      .slice(0, 5);
+    // Pick the better match
+    const type = dog.topConfidence >= cat.topConfidence ? "dog" : "cat";
+    const finalPreds = type === "dog" ? dog.predictions : cat.predictions;
 
     return res.status(200).json({
       success: true,
-      predictions,
-      // optional: helpful debug if empty
-      debug: predictions.length ? undefined : { keys: Object.keys(data || {}) }
+      type, // "dog" | "cat"
+      predictions: finalPreds
     });
 
   } catch (err) {
