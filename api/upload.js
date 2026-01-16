@@ -11,16 +11,14 @@ export default async function handler(req, res) {
     }
 
     const API_KEY = process.env.ROBOFLOW_API_KEY;
-    const DOG_MODEL_ID = process.env.ROBOFLOW_DOG_MODEL_ID;
-    const CAT_MODEL_ID = process.env.ROBOFLOW_CAT_MODEL_ID;
+    const DOG_MODEL_ID = process.env.ROBOFLOW_DOG_MODEL_ID; // g5-pet-breed-identifier/1
 
-    if (!API_KEY || !DOG_MODEL_ID || !CAT_MODEL_ID) {
+    if (!API_KEY || !DOG_MODEL_ID) {
       return res.status(500).json({
         error: "Missing Roboflow env vars",
         missing: {
-          ROBOFLOW_API_KEY: fBSyrKCgiIIGPwkaYvlR,
-          ROBOFLOW_DOG_MODEL_ID: g5-pet-breed-identifier/1,
-          ROBOFLOW_CAT_MODEL_ID: g5-pet-breed-identifier-cat/1
+          ROBOFLOW_API_KEY: !API_KEY,
+          ROBOFLOW_DOG_MODEL_ID: !DOG_MODEL_ID
         }
       });
     }
@@ -57,58 +55,34 @@ export default async function handler(req, res) {
       return preds.sort((a, b) => b.confidence - a.confidence).slice(0, 5);
     }
 
-    async function classify(modelId) {
-      const endpoint = `https://classify.roboflow.com/${modelId}?api_key=${API_KEY}`;
+    const endpoint = `https://classify.roboflow.com/${DOG_MODEL_ID}?api_key=${API_KEY}`;
 
-      const rfRes = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: cleanBase64
+    const rfRes = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: cleanBase64
+    });
+
+    const text = await rfRes.text();
+    if (!rfRes.ok) {
+      return res.status(502).json({
+        error: "Roboflow failed",
+        details: text.slice(0, 300)
       });
-
-      const text = await rfRes.text();
-      if (!rfRes.ok) {
-        return {
-          ok: false,
-          error: text.slice(0, 300),
-          predictions: [],
-          topConfidence: 0,
-          rawKeys: []
-        };
-      }
-
-      const data = JSON.parse(text);
-      const predictions = normalizePredictions(data);
-      const topConfidence = predictions[0]?.confidence || 0;
-
-      return {
-        ok: true,
-        predictions,
-        topConfidence,
-        rawKeys: Object.keys(data || {})
-      };
     }
 
-    // call both models
-    const [dogRes, catRes] = await Promise.all([
-      classify(DOG_MODEL_ID),
-      classify(CAT_MODEL_ID)
-    ]);
+    const data = JSON.parse(text);
+    const predictions = normalizePredictions(data);
 
-    // pick winner by confidence
-    const type = dogRes.topConfidence >= catRes.topConfidence ? "dog" : "cat";
-    const finalPreds = type === "dog" ? dogRes.predictions : catRes.predictions;
-
-    // Mixed-looking rule (optional): 2+ breeds >= 20%
-    const strong = finalPreds.filter(p => p.confidence >= 0.20);
+    // Mixed-looking rule: 2+ breeds >= 20%
+    const strong = predictions.filter(p => p.confidence >= 0.20);
     const possibleMix = strong.length > 1;
 
     return res.status(200).json({
       success: true,
-      type,              // "dog" or "cat"
-      possibleMix,       // true/false
-      predictions: finalPreds
-      // If you want debug back, tell me and I'll add it again
+      type: "dog",
+      possibleMix,
+      predictions
     });
   } catch (err) {
     console.error("❌ PAW-ID ERROR:", err);
