@@ -1,5 +1,4 @@
 export default async function handler(req, res) {
-  // Allow quick ping/debug
   if (req.method === "GET") {
     return res.status(200).send("OK /api/upload is reachable");
   }
@@ -16,16 +15,10 @@ export default async function handler(req, res) {
     }
 
     const API_KEY = process.env.ROBOFLOW_API_KEY;
-    const MODEL_ID = process.env.ROBOFLOW_MODEL_ID;
+    const MODEL_ID = process.env.ROBOFLOW_MODEL_ID; // not-dogs-dcagu/1
 
     if (!API_KEY || !MODEL_ID) {
-      return res.status(500).json({
-        error: "Missing Roboflow env vars",
-        missing: {
-          ROBOFLOW_API_KEY: !API_KEY,
-          ROBOFLOW_MODEL_ID: !MODEL_ID
-        }
-      });
+      return res.status(500).json({ error: "Missing Roboflow env vars" });
     }
 
     const cleanBase64 = image.replace(/^data:image\/\w+;base64,/, "");
@@ -64,7 +57,6 @@ export default async function handler(req, res) {
     });
 
     const text = await rfRes.text();
-
     if (!rfRes.ok) {
       return res.status(502).json({
         error: "Roboflow failed",
@@ -72,42 +64,34 @@ export default async function handler(req, res) {
       });
     }
 
-    let data;
-    try {
-      data = JSON.parse(text);
-    } catch {
-      return res.status(502).json({
-        error: "Roboflow returned non-JSON",
-        details: text.slice(0, 300)
-      });
-    }
-
+    const data = JSON.parse(text);
     const predictions = normalizePredictions(data);
-
-    // ✅ Adjust labels if needed (exact match sa model labels)
-    const DOG_LABELS = new Set(["dog", "dogs"]);
-    const NOT_DOG_LABELS = new Set(["not dog", "not-dog", "not_dog", "notdogs", "not dogs"]);
 
     const top = predictions[0] || { class: "", confidence: 0 };
     const topLabel = String(top.class).toLowerCase();
 
-    const DOG_MIN = 0.60;
-    const NOT_DOG_MIN = 0.60;
+    // ✅ Only these labels are "NOT DOG"
+    // IMPORTANT: adjust to your exact non-dog class names in Roboflow
+    const NOT_DOG_LABELS = new Set([
+      "not dog",
+      "not-dog",
+      "not_dog",
+      "notdogs",
+      "not dogs",
+      "person",
+      "human",
+      "vehicle",
+      "car",
+      "background",
+      "object"
+    ]);
 
-    const dogScore =
-      predictions.find(p => DOG_LABELS.has(String(p.class).toLowerCase()))
-        ?.confidence ?? 0;
+    // Thresholds
+    const NOT_DOG_MIN = 0.60;  // top class must be confidently not-dog
+    const DOG_MIN = 0.35;      // if it's a breed label, allow lower threshold
 
-    const notDogScore =
-      predictions.find(p => NOT_DOG_LABELS.has(String(p.class).toLowerCase()))
-        ?.confidence ?? 0;
-
-    // If top is not-dog or not-dog score is higher enough => NOT DOG
-    const isNotDog =
-      (NOT_DOG_LABELS.has(topLabel) && top.confidence >= NOT_DOG_MIN) ||
-      (notDogScore >= NOT_DOG_MIN && notDogScore > dogScore);
-
-    if (isNotDog) {
+    // ✅ NOT DOG if top label is in NOT_DOG_LABELS and confident
+    if (NOT_DOG_LABELS.has(topLabel) && top.confidence >= NOT_DOG_MIN) {
       return res.status(200).json({
         success: true,
         isDog: false,
@@ -116,44 +100,32 @@ export default async function handler(req, res) {
       });
     }
 
-    // Dog decision
-    const isDog =
-      (DOG_LABELS.has(topLabel) && top.confidence >= DOG_MIN) ||
-      (dogScore >= DOG_MIN && dogScore >= notDogScore);
-
-    if (!isDog) {
-      return res.status(200).json({
-        success: true,
-        isDog: false,
-        isUnknown: true,
-        predictions: []
+    // ✅ DOG if top label is NOT in NOT_DOG_LABELS and reasonably confident
+    // (breeds count as dog)
+    if (!NOT_DOG_LABELS.has(topLabel) && top.confidence >= DOG_MIN) {
+      const filtered = predictions.filter(p => {
+        const cls = String(p.class).toLowerCase();
+        return !NOT_DOG_LABELS.has(cls); // keep breeds
       });
-    }
 
-    // Filter out "dog" / "not dog" classes if present
-    const filtered = predictions.filter(p => {
-      const cls = String(p.class).toLowerCase();
-      return !DOG_LABELS.has(cls) && !NOT_DOG_LABELS.has(cls);
-    });
+      const strong = filtered.filter(p => p.confidence >= 0.2);
+      const possibleMix = strong.length > 1;
 
-    if (!filtered.length) {
       return res.status(200).json({
         success: true,
         isDog: true,
-        isUnknown: true,
-        predictions: []
+        isUnknown: false,
+        possibleMix,
+        predictions: filtered
       });
     }
 
-    const strong = filtered.filter(p => p.confidence >= 0.2);
-    const possibleMix = strong.length > 1;
-
+    // ✅ Otherwise unclear
     return res.status(200).json({
       success: true,
-      isDog: true,
-      isUnknown: false,
-      possibleMix,
-      predictions: filtered
+      isDog: false,
+      isUnknown: true,
+      predictions: []
     });
   } catch (err) {
     console.error("❌ PAW-ID ERROR:", err);
