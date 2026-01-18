@@ -1,8 +1,16 @@
-// pages/api/upload.js
+// api/upload.js
 // ✅ Roboflow Classification (DOG vs NOT-DOG) — single model only
-// Uses ENV:
+// ENV:
 // - ROBOFLOW_API_KEY
 // - ROBOFLOW_GATE_MODEL_ID (e.g. "not-dogs-dcagu/1")
+
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: "10mb"
+    }
+  }
+};
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -16,9 +24,9 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "No image provided" });
     }
 
-    // ✅ READ env vars correctly (no assignment, no invalid identifiers)
-    const API_KEY = process.env.ROBOFLOW_API_KEY="fBSyrKCgiIIGPwkaYvlR";
-    const MODEL_ID = process.env.not-dogs-dcagu/1; // "not-dogs-dcagu/1"
+    // ✅ READ env vars correctly
+    const API_KEY = process.env.ROBOFLOW_API_KEY;
+    const MODEL_ID = process.env.ROBOFLOW_GATE_MODEL_ID;
 
     if (!API_KEY || !MODEL_ID) {
       return res.status(500).json({
@@ -30,7 +38,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // ✅ Remove prefix like: data:image/jpeg;base64,
+    // ✅ Remove data URL prefix (data:image/...;base64,)
     const cleanBase64 = image.replace(/^data:image\/\w+;base64,/, "");
     if (!cleanBase64 || cleanBase64.length < 50) {
       return res.status(400).json({ error: "Invalid image data" });
@@ -39,7 +47,6 @@ export default async function handler(req, res) {
     function normalizePredictions(data) {
       let preds = [];
 
-      // A) predictions is ARRAY: [{class, confidence}, ...]
       if (Array.isArray(data?.predictions)) {
         preds = data.predictions
           .map((p) => ({
@@ -47,23 +54,18 @@ export default async function handler(req, res) {
             confidence: Number(p.confidence ?? p.probability ?? p.score) || 0
           }))
           .filter((p) => p.class);
-      }
-      // B) predictions is OBJECT: { "label": 0.62, ... }
-      else if (data?.predictions && typeof data.predictions === "object") {
+      } else if (data?.predictions && typeof data.predictions === "object") {
         preds = Object.entries(data.predictions).map(([label, conf]) => ({
           class: label,
           confidence: Number(conf) || 0
         }));
-      }
-      // C) top-only format: { top, confidence }
-      else if (data?.top) {
+      } else if (data?.top) {
         preds = [{ class: data.top, confidence: Number(data.confidence) || 0 }];
       }
 
       return preds.sort((a, b) => b.confidence - a.confidence);
     }
 
-    // ✅ Roboflow endpoint
     const endpoint = `https://classify.roboflow.com/${MODEL_ID}?api_key=${API_KEY}`;
 
     const rfRes = await fetch(endpoint, {
@@ -72,20 +74,28 @@ export default async function handler(req, res) {
       body: cleanBase64
     });
 
-    const text = await rfRes.text();
+    const rfText = await rfRes.text();
+
     if (!rfRes.ok) {
       return res.status(502).json({
         error: "Roboflow failed",
-        details: text.slice(0, 300)
+        status: rfRes.status,
+        details: rfText.slice(0, 500)
       });
     }
 
-    const rfData = JSON.parse(text);
+    let rfData;
+    try {
+      rfData = JSON.parse(rfText);
+    } catch {
+      return res.status(502).json({
+        error: "Roboflow returned non-JSON response",
+        details: rfText.slice(0, 500)
+      });
+    }
+
     const preds = normalizePredictions(rfData);
 
-    // ============================
-    // 🎚 Decision logic (tune here)
-    // ============================
     const DOG_MIN = 0.65;
 
     const dogConf =
@@ -106,7 +116,7 @@ export default async function handler(req, res) {
       top5: preds.slice(0, 5)
     });
   } catch (err) {
-    console.error("❌ PAW-ID ERROR:", err);
+    console.error("❌ API ERROR:", err);
     return res.status(500).json({
       error: "Analysis failed",
       details: String(err?.message || err)
