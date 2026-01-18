@@ -11,14 +11,14 @@ export default async function handler(req, res) {
     }
 
     const API_KEY = process.env.ROBOFLOW_API_KEY;
-    const DOG_MODEL_ID = process.env.ROBOFLOW_DOG_MODEL_ID; // g5-pet-breed-identifier/1
+    const MODEL_ID = process.env.ROBOFLOW_MODEL_ID; // not-dogs-dcagu/1
 
-    if (!API_KEY || !DOG_MODEL_ID) {
+    if (!API_KEY || !MODEL_ID) {
       return res.status(500).json({
         error: "Missing Roboflow env vars",
         missing: {
           ROBOFLOW_API_KEY: !API_KEY,
-          ROBOFLOW_DOG_MODEL_ID: !DOG_MODEL_ID
+          ROBOFLOW_MODEL_ID: !MODEL_ID
         }
       });
     }
@@ -40,10 +40,10 @@ export default async function handler(req, res) {
           }))
           .filter(p => p.class);
       }
-      // B) predictions is OBJECT: { "breed": 0.62, ... }
+      // B) predictions is OBJECT: { "label": 0.62, ... }
       else if (data?.predictions && typeof data.predictions === "object") {
-        preds = Object.entries(data.predictions).map(([breed, conf]) => ({
-          class: breed,
+        preds = Object.entries(data.predictions).map(([cls, conf]) => ({
+          class: cls,
           confidence: Number(conf) || 0
         }));
       }
@@ -55,7 +55,7 @@ export default async function handler(req, res) {
       return preds.sort((a, b) => b.confidence - a.confidence).slice(0, 5);
     }
 
-    const endpoint = `https://classify.roboflow.com/${DOG_MODEL_ID}?api_key=${API_KEY}`;
+    const endpoint = `https://classify.roboflow.com/${MODEL_ID}?api_key=${API_KEY}`;
 
     const rfRes = await fetch(endpoint, {
       method: "POST",
@@ -74,38 +74,82 @@ export default async function handler(req, res) {
     const data = JSON.parse(text);
     const predictions = normalizePredictions(data);
 
-    // ✅ OPTION A: Unknown / Not-a-Dog decision using thresholds
-    // Tune these if needed:
-    const TOP_MIN = 0.35; // if top < 35% => likely not a dog / unclear image
-    const GAP_MIN = 0.12; // if top-second < 12% => ambiguous
+    // ✅ IMPORTANT: i-adjust mo ito kung iba ang exact labels ng model mo
+    // typical: "dog", "not dog"
+    const DOG_LABELS = new Set(["dog", "dogs"]);
+    const NOT_DOG_LABELS = new Set([
+      "not dog",
+      "not-dog",
+      "not_dog",
+      "notdogs",
+      "not dogs"
+    ]);
 
-    const top = predictions[0] || { confidence: 0 };
-    const second = predictions[1] || { confidence: 0 };
+    const top = predictions[0] || { class: "", confidence: 0 };
+    const topLabel = String(top.class).toLowerCase();
 
-    const isUnknown =
-      top.confidence < TOP_MIN ||
-      (top.confidence - second.confidence) < GAP_MIN;
+    // Tune thresholds
+    const DOG_MIN = 0.60;
+    const NOT_DOG_MIN = 0.60;
 
-    if (isUnknown) {
+    const dogScore =
+      predictions.find(p => DOG_LABELS.has(String(p.class).toLowerCase()))
+        ?.confidence ?? 0;
+
+    const notDogScore =
+      predictions.find(p => NOT_DOG_LABELS.has(String(p.class).toLowerCase()))
+        ?.confidence ?? 0;
+
+    const isNotDog =
+      (NOT_DOG_LABELS.has(topLabel) && top.confidence >= NOT_DOG_MIN) ||
+      (notDogScore >= NOT_DOG_MIN && notDogScore > dogScore);
+
+    if (isNotDog) {
       return res.status(200).json({
         success: true,
-        type: "dog",
-        isUnknown: true,
-        possibleMix: false,
+        isDog: false,
+        isUnknown: false,
         predictions: []
       });
     }
 
-    // Mixed-looking rule: 2+ breeds >= 20%
-    const strong = predictions.filter(p => p.confidence >= 0.20);
+    const isDog =
+      (DOG_LABELS.has(topLabel) && top.confidence >= DOG_MIN) ||
+      (dogScore >= DOG_MIN && dogScore >= notDogScore);
+
+    if (!isDog) {
+      return res.status(200).json({
+        success: true,
+        isDog: false,
+        isUnknown: true,
+        predictions: []
+      });
+    }
+
+    // ✅ DOG: remove generic "dog" and "not dog" labels; keep breed-like outputs
+    const filtered = predictions.filter(p => {
+      const cls = String(p.class).toLowerCase();
+      return !DOG_LABELS.has(cls) && !NOT_DOG_LABELS.has(cls);
+    });
+
+    if (!filtered.length) {
+      return res.status(200).json({
+        success: true,
+        isDog: true,
+        isUnknown: true,
+        predictions: []
+      });
+    }
+
+    const strong = filtered.filter(p => p.confidence >= 0.2);
     const possibleMix = strong.length > 1;
 
     return res.status(200).json({
       success: true,
-      type: "dog",
+      isDog: true,
       isUnknown: false,
       possibleMix,
-      predictions
+      predictions: filtered
     });
   } catch (err) {
     console.error("❌ PAW-ID ERROR:", err);

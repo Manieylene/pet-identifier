@@ -66,12 +66,22 @@ document.addEventListener("DOMContentLoaded", () => {
     card.classList.remove("hidden");
     list.innerHTML = "";
 
-    // ✅ OPTION A: Unknown / Not-a-Dog UI
-    if (data.isUnknown) {
-      mainBreed.textContent = "Unknown / Not a Dog";
-      badge.textContent = "NO DOG DETECTED";
+    // ✅ NOT DOG
+    if (data.isDog === false && data.isUnknown === false) {
+      mainBreed.textContent = "Not a Dog";
+      badge.textContent = "NOT DOG";
       badge.className = "badge mixed";
-      explanation.textContent = "Please upload a clear photo of a dog (face or full body).";
+      explanation.textContent = "No dog detected in the image.";
+      return;
+    }
+
+    // ✅ UNKNOWN / UNCLEAR
+    if (data.isUnknown) {
+      mainBreed.textContent = "Unknown / Unclear";
+      badge.textContent = "UNCLEAR";
+      badge.className = "badge mixed";
+      explanation.textContent =
+        "Please upload a clear photo of a dog (face or full body).";
       return;
     }
 
