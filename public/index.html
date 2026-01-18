@@ -23,14 +23,14 @@
     <!-- Left Section - Upload -->
     <section class="upload-section">
       <h2 class="section-title"><i class="fas fa-cloud-upload-alt"></i> Upload Image</h2>
-      
+
       <div class="upload-card">
         <div class="upload-icon">
           <i class="fas fa-cloud-upload-alt"></i>
         </div>
         <h3>Upload Dog Photo</h3>
         <p>Supported formats: JPG, PNG, WEBP (Max 5MB)</p>
-        
+
         <div class="camera-upload">
           <button id="uploadBtn" class="upload-btn">
             <i class="fas fa-folder-open"></i> Choose File
@@ -57,21 +57,21 @@
             <i class="fas fa-search"></i> Analyze Image
           </button>
         </div>
-        
+
         <!-- Demo Images Section -->
         <div class="demo-images">
           <p class="demo-title">Try with these sample images:</p>
           <div class="demo-grid">
             <div class="demo-image" data-breed="golden-retriever">
-              <img src="https://images.unsplash.com/photo-1552053831-71594a27632d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8M3x8Z29sZGVuJTIwcmV0cmlldmVyfGVufDB8fDB8fHww&auto=format&fit=crop&w=500&q=60" alt="Golden Retriever">
+              <img src="https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=500&q=60" alt="Golden Retriever">
               <div class="demo-label">Golden Retriever</div>
             </div>
             <div class="demo-image" data-breed="german-shepherd">
-              <img src="https://images.unsplash.com/photo-1560807707-8cc77767d783?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8Z2VybWFuJTIwc2hlcGhlcmR8ZW58MHx8MHx8fDA%3D&auto=format&fit=crop&w=500&q=60" alt="German Shepherd">
+              <img src="https://images.unsplash.com/photo-1560807707-8cc77767d783?auto=format&fit=crop&w=500&q=60" alt="German Shepherd">
               <div class="demo-label">German Shepherd</div>
             </div>
             <div class="demo-image" data-breed="bulldog">
-              <img src="https://images.unsplash.com/photo-1587402092301-725e37c70fd8?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8YnVsbGRvZ3xlbnwwfHwwfHx8MA%3D%3D&auto=format&fit=crop&w=500&q=60" alt="Bulldog">
+              <img src="https://images.unsplash.com/photo-1587402092301-725e37c70fd8?auto=format&fit=crop&w=500&q=60" alt="Bulldog">
               <div class="demo-label">Bulldog</div>
             </div>
           </div>
@@ -82,12 +82,12 @@
     <!-- Right Section - Results -->
     <section class="result-section">
       <h2 class="section-title"><i class="fas fa-search"></i> Results</h2>
-      
+
       <div class="loading" id="loading">
         <div class="spinner"></div>
         <p>Analyzing image to identify breed...</p>
       </div>
-      
+
       <div class="result-content" id="result-content">
         <div class="dog-image-container">
           <div class="default-image" id="default-image">
@@ -95,21 +95,23 @@
           </div>
           <img id="dog-image" class="hidden" alt="Uploaded dog">
         </div>
-        
+
         <div class="breed-result" id="breed-result">
           <p>Upload a dog image to see the breed identification results</p>
         </div>
-        
+
         <div class="breed-info hidden" id="breed-info">
           <h3 class="info-title"><i class="fas fa-info-circle"></i> Breed Information</h3>
           <div class="breed-details" id="breed-details"></div>
           <p class="description" id="breed-description"></p>
         </div>
+
+        <!-- ✅ We will MOVE the #result-card here using JS (no function change) -->
       </div>
     </section>
   </div>
 
-  <!-- Your Original Result Card (kept for backward compatibility) -->
+  <!-- Original Result Card (kept; JS will move it to the right panel) -->
   <div id="result-card" class="result-card hidden">
     <div class="card-header">
       <h2 id="main-breed">Breed</h2>

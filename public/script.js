@@ -1,6 +1,13 @@
 document.addEventListener("DOMContentLoaded", () => {
   console.log("✅ script.js loaded");
 
+  // ✅ UI-only: move #result-card into the RIGHT panel (no API/function changes)
+  const resultCardEl = document.getElementById("result-card");
+  const resultContentEl = document.getElementById("result-content");
+  if (resultCardEl && resultContentEl) {
+    resultContentEl.appendChild(resultCardEl);
+  }
+
   const uploadBtn = document.getElementById("uploadBtn");
   const imageInput = document.getElementById("imageInput");
   const imagePreview = document.getElementById("imagePreview");
@@ -35,6 +42,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const badge = document.getElementById("badge");
     const explanation = document.getElementById("explanation");
     const list = document.getElementById("confidence-list");
+
+    // ✅ UI-only: hide placeholder message in right panel when showing results
+    const breedResult = document.getElementById("breed-result");
+    if (breedResult) breedResult.classList.add("hidden");
 
     card.classList.remove("hidden");
     list.innerHTML = "";
