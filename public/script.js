@@ -1,7 +1,7 @@
 document.addEventListener("DOMContentLoaded", () => {
   console.log("✅ script.js loaded");
 
-  // ✅ UI-only: move #result-card into the RIGHT panel (no API/function changes)
+  // ✅ Move result card into RIGHT panel
   const resultCardEl = document.getElementById("result-card");
   const resultContentEl = document.getElementById("result-content");
   if (resultCardEl && resultContentEl) {
@@ -14,7 +14,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const previewPlaceholder = document.getElementById("previewPlaceholder");
   const analyzeBtn = document.getElementById("analyzeImageBtn");
 
+  // 👉 RIGHT PANEL elements
+  const dogImage = document.getElementById("dog-image");
+  const defaultImage = document.getElementById("default-image");
+
   let currentFile = null;
+  let currentImageData = null; // 👈 store base64 for right panel
 
   uploadBtn.addEventListener("click", () => imageInput.click());
 
@@ -26,10 +31,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const reader = new FileReader();
     reader.onload = e => {
+      // LEFT preview
       imagePreview.src = e.target.result;
       imagePreview.style.display = "block";
       previewPlaceholder.style.display = "none";
       analyzeBtn.disabled = false;
+
+      // 👇 SAVE image for RIGHT panel
+      currentImageData = e.target.result;
     };
     reader.readAsDataURL(file);
   });
@@ -42,10 +51,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const badge = document.getElementById("badge");
     const explanation = document.getElementById("explanation");
     const list = document.getElementById("confidence-list");
-
-    // ✅ UI-only: hide placeholder message in right panel when showing results
     const breedResult = document.getElementById("breed-result");
+
+    // ✅ UI-only: hide placeholder text
     if (breedResult) breedResult.classList.add("hidden");
+
+    // ✅ SHOW uploaded image in RIGHT panel (TOP SPACE)
+    if (currentImageData && dogImage && defaultImage) {
+      dogImage.src = currentImageData;
+      dogImage.classList.remove("hidden");
+      defaultImage.classList.add("hidden");
+    }
 
     card.classList.remove("hidden");
     list.innerHTML = "";
@@ -92,7 +108,7 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
           data = JSON.parse(rawText);
         } catch {
-          throw new Error("API did not return JSON (maybe 404 HTML). Raw: " + rawText.slice(0, 80));
+          throw new Error("API did not return JSON");
         }
 
         if (!res.ok) {
@@ -125,7 +141,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     list.innerHTML = "";
 
-    // ✅ NOT DOG
     if (data.isDog === false && data.isUnknown === false) {
       mainBreed.textContent = "Not a Dog";
       badge.textContent = "NOT DOG";
@@ -134,24 +149,16 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    // ✅ UNKNOWN / UNCLEAR
     if (data.isUnknown) {
       mainBreed.textContent = "Unknown / Unclear";
       badge.textContent = "UNCLEAR";
       badge.className = "badge mixed";
-      explanation.textContent = "Upload a clearer dog photo (face or full body).";
+      explanation.textContent = "Upload a clearer dog photo.";
       return;
     }
 
     const preds = data.predictions || [];
-
-    if (!preds.length) {
-      mainBreed.textContent = "Unknown";
-      badge.textContent = "NO DATA";
-      badge.className = "badge mixed";
-      explanation.textContent = "No breed detected.";
-      return;
-    }
+    if (!preds.length) return;
 
     const top = preds[0];
     mainBreed.textContent = top.class;
