@@ -1,7 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
   console.log("✅ script.js loaded");
 
-  // ✅ Move result card into RIGHT panel
   const resultCardEl = document.getElementById("result-card");
   const resultContentEl = document.getElementById("result-content");
   if (resultCardEl && resultContentEl) {
@@ -14,12 +13,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const previewPlaceholder = document.getElementById("previewPlaceholder");
   const analyzeBtn = document.getElementById("analyzeImageBtn");
 
-  // 👉 RIGHT PANEL elements
   const dogImage = document.getElementById("dog-image");
   const defaultImage = document.getElementById("default-image");
 
   let currentFile = null;
-  let currentImageData = null; // 👈 store base64 for right panel
+  let currentImageData = null; 
 
   uploadBtn.addEventListener("click", () => imageInput.click());
 
@@ -31,13 +29,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const reader = new FileReader();
     reader.onload = e => {
-      // LEFT preview
       imagePreview.src = e.target.result;
       imagePreview.style.display = "block";
       previewPlaceholder.style.display = "none";
       analyzeBtn.disabled = false;
 
-      // 👇 SAVE image for RIGHT panel
       currentImageData = e.target.result;
     };
     reader.readAsDataURL(file);
@@ -53,10 +49,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const list = document.getElementById("confidence-list");
     const breedResult = document.getElementById("breed-result");
 
-    // ✅ UI-only: hide placeholder text
     if (breedResult) breedResult.classList.add("hidden");
 
-    // ✅ SHOW uploaded image in RIGHT panel (TOP SPACE)
     if (currentImageData && dogImage && defaultImage) {
       dogImage.src = currentImageData;
       dogImage.classList.remove("hidden");

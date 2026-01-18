@@ -15,7 +15,7 @@ export default async function handler(req, res) {
     }
 
     const API_KEY = process.env.ROBOFLOW_API_KEY;
-    const MODEL_ID = process.env.ROBOFLOW_MODEL_ID; // not-dogs-dcagu/1
+    const MODEL_ID = process.env.ROBOFLOW_MODEL_ID; 
 
     if (!API_KEY || !MODEL_ID) {
       return res.status(500).json({ error: "Missing Roboflow env vars" });
@@ -70,8 +70,6 @@ export default async function handler(req, res) {
     const top = predictions[0] || { class: "", confidence: 0 };
     const topLabel = String(top.class).toLowerCase();
 
-    // ✅ Only these labels are "NOT DOG"
-    // IMPORTANT: adjust to your exact non-dog class names in Roboflow
     const NOT_DOG_LABELS = new Set([
       "not dog",
       "not-dog",
@@ -86,11 +84,11 @@ export default async function handler(req, res) {
       "object"
     ]);
 
-    // Thresholds
-    const NOT_DOG_MIN = 0.60;  // top class must be confidently not-dog
-    const DOG_MIN = 0.35;      // if it's a breed label, allow lower threshold
+    
+    const NOT_DOG_MIN = 0.60;  
+    const DOG_MIN = 0.35;      
 
-    // ✅ NOT DOG if top label is in NOT_DOG_LABELS and confident
+   
     if (NOT_DOG_LABELS.has(topLabel) && top.confidence >= NOT_DOG_MIN) {
       return res.status(200).json({
         success: true,
@@ -100,12 +98,10 @@ export default async function handler(req, res) {
       });
     }
 
-    // ✅ DOG if top label is NOT in NOT_DOG_LABELS and reasonably confident
-    // (breeds count as dog)
     if (!NOT_DOG_LABELS.has(topLabel) && top.confidence >= DOG_MIN) {
       const filtered = predictions.filter(p => {
         const cls = String(p.class).toLowerCase();
-        return !NOT_DOG_LABELS.has(cls); // keep breeds
+        return !NOT_DOG_LABELS.has(cls); 
       });
 
       const strong = filtered.filter(p => p.confidence >= 0.2);
@@ -120,7 +116,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // ✅ Otherwise unclear
     return res.status(200).json({
       success: true,
       isDog: false,
