@@ -10,17 +10,22 @@ document.addEventListener("DOMContentLoaded", () => {
   uploadBtn.addEventListener("click", () => imageInput.click());
 
   imageInput.addEventListener("change", () => {
-    const file = imageInput.files[0];
+    const file = imageInput.files?.[0];
     if (!file) return;
 
     currentFile = file;
 
     const reader = new FileReader();
-    reader.onload = e => {
+    reader.onload = (e) => {
       imagePreview.src = e.target.result;
       imagePreview.style.display = "block";
       previewPlaceholder.style.display = "none";
       analyzeBtn.disabled = false;
+    };
+    reader.onerror = () => {
+      alert("Failed to read image file.");
+      currentFile = null;
+      analyzeBtn.disabled = true;
     };
     reader.readAsDataURL(file);
   });
@@ -32,24 +37,35 @@ document.addEventListener("DOMContentLoaded", () => {
     analyzeBtn.textContent = "Analyzing...";
 
     try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const res = await fetch("/api/upload", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image: reader.result })
-        });
+      // ✅ Convert file -> base64 (awaitable)
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error("Failed to read image."));
+        reader.readAsDataURL(currentFile);
+      });
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.error || "API request failed");
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: base64 })
+      });
 
-        renderResult(data);
-      };
+      // ✅ robust parse (handles HTML error pages, etc.)
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = { error: text };
+      }
 
-      reader.readAsDataURL(currentFile);
+      if (!res.ok) throw new Error(data?.error || "API request failed");
+
+      renderResult(data);
     } catch (err) {
       console.error(err);
-      alert("Analysis failed");
+      alert(err?.message || "Analysis failed");
     } finally {
       analyzeBtn.disabled = false;
       analyzeBtn.innerHTML = '<i class="fas fa-search"></i> Analyze Image';
@@ -63,11 +79,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const explanation = document.getElementById("explanation");
     const list = document.getElementById("confidence-list");
 
+    if (!card || !mainTitle || !badge || !explanation || !list) {
+      console.warn("Missing result DOM elements. Check your HTML IDs.");
+      alert("Result UI elements not found (check HTML IDs).");
+      return;
+    }
+
     card.classList.remove("hidden");
     list.innerHTML = "";
 
-    // ✅ New API response:
-    // { type: "dog" | "not-dog", confidence, scores: {dog, notDog}, top5: [...] }
+    // Expected API response:
+    // { success:true, type:"dog"|"not-dog", confidence, scores:{dog,notDog}, top5:[...] }
 
     const type = String(data?.type || "").toLowerCase();
     const conf = Number(data?.confidence) || 0;
@@ -85,8 +107,7 @@ document.addEventListener("DOMContentLoaded", () => {
       explanation.textContent = `Confidence: ${percent}%`;
     }
 
-    // Optional: show debug scores + top5
-    // (pwede mong tanggalin later)
+    // Optional debug scores + top5
     const scores = data?.scores || {};
     const dogScore = Number(scores.dog || 0);
     const notDogScore = Number(scores.notDog || scores.not_dog || 0);

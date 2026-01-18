@@ -1,6 +1,8 @@
 // pages/api/upload.js
 // ✅ Roboflow Classification (DOG vs NOT-DOG) — single model only
-// Uses: ROBOFLOW_API_KEY + ROBOFLOW_GATE_MODEL_ID (e.g. not-dogs-dcagu/1)
+// Uses ENV:
+// - ROBOFLOW_API_KEY
+// - ROBOFLOW_GATE_MODEL_ID (e.g. "not-dogs-dcagu/1")
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
@@ -14,15 +16,9 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "No image provided" });
     }
 
-    // ============================
-    // 🔑 REQUIRED ENV VARS
-    // ============================
-    // 👉 Put your Roboflow API key here (Vercel env var / .env)
+    // ✅ READ env vars correctly (no assignment, no invalid identifiers)
     const API_KEY = process.env.ROBOFLOW_API_KEY="fBSyrKCgiIIGPwkaYvlR";
-
-    // 👉 Put your model id here (Vercel env var / .env)
-    // Example: "not-dogs-dcagu/1"
-    const MODEL_ID = process.env.not-dogs-dcagu/1;
+    const MODEL_ID = process.env.not-dogs-dcagu/1; // "not-dogs-dcagu/1"
 
     if (!API_KEY || !MODEL_ID) {
       return res.status(500).json({
@@ -34,29 +30,23 @@ export default async function handler(req, res) {
       });
     }
 
-    // ============================
-    // 🖼 BASE64 CLEANUP
-    // ============================
-    // Removes prefixes like: data:image/jpeg;base64,
+    // ✅ Remove prefix like: data:image/jpeg;base64,
     const cleanBase64 = image.replace(/^data:image\/\w+;base64,/, "");
     if (!cleanBase64 || cleanBase64.length < 50) {
       return res.status(400).json({ error: "Invalid image data" });
     }
 
-    // ============================
-    // 🔄 Normalize Roboflow outputs
-    // ============================
     function normalizePredictions(data) {
       let preds = [];
 
       // A) predictions is ARRAY: [{class, confidence}, ...]
       if (Array.isArray(data?.predictions)) {
         preds = data.predictions
-          .map(p => ({
+          .map((p) => ({
             class: p.class ?? p.label ?? p.name,
             confidence: Number(p.confidence ?? p.probability ?? p.score) || 0
           }))
-          .filter(p => p.class);
+          .filter((p) => p.class);
       }
       // B) predictions is OBJECT: { "label": 0.62, ... }
       else if (data?.predictions && typeof data.predictions === "object") {
@@ -73,9 +63,7 @@ export default async function handler(req, res) {
       return preds.sort((a, b) => b.confidence - a.confidence);
     }
 
-    // ============================
-    // 🌐 Call Roboflow
-    // ============================
+    // ✅ Roboflow endpoint
     const endpoint = `https://classify.roboflow.com/${MODEL_ID}?api_key=${API_KEY}`;
 
     const rfRes = await fetch(endpoint, {
@@ -92,37 +80,28 @@ export default async function handler(req, res) {
       });
     }
 
-    const data = JSON.parse(text);
-    const preds = normalizePredictions(data);
+    const rfData = JSON.parse(text);
+    const preds = normalizePredictions(rfData);
 
     // ============================
     // 🎚 Decision logic (tune here)
     // ============================
-    // 👉 Increase this if people/objects still get predicted as dog
     const DOG_MIN = 0.65;
 
-    // Look up confidences by label (case-insensitive)
     const dogConf =
-      preds.find(p => String(p.class).toLowerCase() === "dog")?.confidence ?? 0;
+      preds.find((p) => String(p.class).toLowerCase() === "dog")?.confidence ?? 0;
 
     const notDogConf =
-      preds.find(p => String(p.class).toLowerCase() === "not-dog")?.confidence ??
-      preds.find(p => String(p.class).toLowerCase() === "notdog")?.confidence ??
-      preds.find(p => String(p.class).toLowerCase() === "not_dog")?.confidence ??
-      0;
+      preds.find((p) =>
+        ["not-dog", "notdog", "not_dog"].includes(String(p.class).toLowerCase())
+      )?.confidence ?? 0;
 
-    // If dog is confidently higher than not-dog, treat as dog
     const isDog = dogConf >= DOG_MIN && dogConf > notDogConf;
 
-    // ============================
-    // ✅ Response (dog / not-dog only)
-    // ============================
     return res.status(200).json({
       success: true,
       type: isDog ? "dog" : "not-dog",
       confidence: isDog ? dogConf : notDogConf,
-
-      // Optional debug fields (safe to keep while tuning; remove later)
       scores: { dog: dogConf, notDog: notDogConf },
       top5: preds.slice(0, 5)
     });
