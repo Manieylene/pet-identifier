@@ -1,3 +1,7 @@
+// pages/api/upload.js
+// ✅ Roboflow Classification (DOG vs NOT-DOG) — single model only
+// Uses: ROBOFLOW_API_KEY + ROBOFLOW_GATE_MODEL_ID (e.g. not-dogs-dcagu/1)
+
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -10,24 +14,38 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "No image provided" });
     }
 
-    const API_KEY = process.env.ROBOFLOW_API_KEY;
-    const DOG_MODEL_ID = process.env.ROBOFLOW_DOG_MODEL_ID; // g5-pet-breed-identifier/1
+    // ============================
+    // 🔑 REQUIRED ENV VARS
+    // ============================
+    // 👉 Put your Roboflow API key here (Vercel env var / .env)
+    const API_KEY = process.env.ROBOFLOW_API_KEY="fBSyrKCgiIIGPwkaYvlR";
 
-    if (!API_KEY || !DOG_MODEL_ID) {
+    // 👉 Put your model id here (Vercel env var / .env)
+    // Example: "not-dogs-dcagu/1"
+    const MODEL_ID = process.env.not-dogs-dcagu/1;
+
+    if (!API_KEY || !MODEL_ID) {
       return res.status(500).json({
         error: "Missing Roboflow env vars",
         missing: {
           ROBOFLOW_API_KEY: !API_KEY,
-          ROBOFLOW_DOG_MODEL_ID: !DOG_MODEL_ID
+          ROBOFLOW_GATE_MODEL_ID: !MODEL_ID
         }
       });
     }
 
+    // ============================
+    // 🖼 BASE64 CLEANUP
+    // ============================
+    // Removes prefixes like: data:image/jpeg;base64,
     const cleanBase64 = image.replace(/^data:image\/\w+;base64,/, "");
     if (!cleanBase64 || cleanBase64.length < 50) {
       return res.status(400).json({ error: "Invalid image data" });
     }
 
+    // ============================
+    // 🔄 Normalize Roboflow outputs
+    // ============================
     function normalizePredictions(data) {
       let preds = [];
 
@@ -40,22 +58,25 @@ export default async function handler(req, res) {
           }))
           .filter(p => p.class);
       }
-      // B) predictions is OBJECT: { "breed": 0.62, ... }
+      // B) predictions is OBJECT: { "label": 0.62, ... }
       else if (data?.predictions && typeof data.predictions === "object") {
-        preds = Object.entries(data.predictions).map(([breed, conf]) => ({
-          class: breed,
+        preds = Object.entries(data.predictions).map(([label, conf]) => ({
+          class: label,
           confidence: Number(conf) || 0
         }));
       }
-      // C) top-only format
+      // C) top-only format: { top, confidence }
       else if (data?.top) {
         preds = [{ class: data.top, confidence: Number(data.confidence) || 0 }];
       }
 
-      return preds.sort((a, b) => b.confidence - a.confidence).slice(0, 5);
+      return preds.sort((a, b) => b.confidence - a.confidence);
     }
 
-    const endpoint = `https://classify.roboflow.com/${DOG_MODEL_ID}?api_key=${API_KEY}`;
+    // ============================
+    // 🌐 Call Roboflow
+    // ============================
+    const endpoint = `https://classify.roboflow.com/${MODEL_ID}?api_key=${API_KEY}`;
 
     const rfRes = await fetch(endpoint, {
       method: "POST",
@@ -72,43 +93,44 @@ export default async function handler(req, res) {
     }
 
     const data = JSON.parse(text);
-    const predictions = normalizePredictions(data);
+    const preds = normalizePredictions(data);
 
-    // ✅ OPTION A: Unknown / Not-a-Dog decision using thresholds
-    // Tune these if needed:
-    const TOP_MIN = 0.35; // if top < 35% => likely not a dog / unclear image
-    const GAP_MIN = 0.12; // if top-second < 12% => ambiguous
+    // ============================
+    // 🎚 Decision logic (tune here)
+    // ============================
+    // 👉 Increase this if people/objects still get predicted as dog
+    const DOG_MIN = 0.65;
 
-    const top = predictions[0] || { confidence: 0 };
-    const second = predictions[1] || { confidence: 0 };
+    // Look up confidences by label (case-insensitive)
+    const dogConf =
+      preds.find(p => String(p.class).toLowerCase() === "dog")?.confidence ?? 0;
 
-    const isUnknown =
-      top.confidence < TOP_MIN ||
-      (top.confidence - second.confidence) < GAP_MIN;
+    const notDogConf =
+      preds.find(p => String(p.class).toLowerCase() === "not-dog")?.confidence ??
+      preds.find(p => String(p.class).toLowerCase() === "notdog")?.confidence ??
+      preds.find(p => String(p.class).toLowerCase() === "not_dog")?.confidence ??
+      0;
 
-    if (isUnknown) {
-      return res.status(200).json({
-        success: true,
-        type: "dog",
-        isUnknown: true,
-        possibleMix: false,
-        predictions: []
-      });
-    }
+    // If dog is confidently higher than not-dog, treat as dog
+    const isDog = dogConf >= DOG_MIN && dogConf > notDogConf;
 
-    // Mixed-looking rule: 2+ breeds >= 20%
-    const strong = predictions.filter(p => p.confidence >= 0.20);
-    const possibleMix = strong.length > 1;
-
+    // ============================
+    // ✅ Response (dog / not-dog only)
+    // ============================
     return res.status(200).json({
       success: true,
-      type: "dog",
-      isUnknown: false,
-      possibleMix,
-      predictions
+      type: isDog ? "dog" : "not-dog",
+      confidence: isDog ? dogConf : notDogConf,
+
+      // Optional debug fields (safe to keep while tuning; remove later)
+      scores: { dog: dogConf, notDog: notDogConf },
+      top5: preds.slice(0, 5)
     });
   } catch (err) {
     console.error("❌ PAW-ID ERROR:", err);
-    return res.status(500).json({ error: "Analysis failed" });
+    return res.status(500).json({
+      error: "Analysis failed",
+      details: String(err?.message || err)
+    });
   }
 }
