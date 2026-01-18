@@ -65,7 +65,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     reader.onload = async () => {
       try {
-        explanation.textContent = "Calling /api/upload ...";
+        explanation.textContent = "wait a minute...";
 
         const res = await fetch("/api/upload", {
           method: "POST",
