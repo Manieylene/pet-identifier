@@ -31,11 +31,10 @@ body {
 .hero-section {
   background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
   color: white;
-  padding: 24px 20px;   /* ⬅️ from 40px → 24px */
+  padding: 16px 20px;   /* ⬅️ SUPER LIIT */
   text-align: center;
-  position: relative;
-  overflow: hidden;
 }
+
 
 
 .hero-content {
