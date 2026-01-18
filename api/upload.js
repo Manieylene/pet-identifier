@@ -1,6 +1,11 @@
 export default async function handler(req, res) {
+  // Allow quick ping/debug
+  if (req.method === "GET") {
+    return res.status(200).send("OK /api/upload is reachable");
+  }
+
   if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
+    res.setHeader("Allow", "POST, GET");
     return res.status(405).json({ error: "Method not allowed" });
   }
 
@@ -11,7 +16,7 @@ export default async function handler(req, res) {
     }
 
     const API_KEY = process.env.ROBOFLOW_API_KEY;
-    const MODEL_ID = process.env.ROBOFLOW_MODEL_ID; // not-dogs-dcagu/1
+    const MODEL_ID = process.env.ROBOFLOW_MODEL_ID;
 
     if (!API_KEY || !MODEL_ID) {
       return res.status(500).json({
@@ -79,46 +84,27 @@ export default async function handler(req, res) {
 
     const predictions = normalizePredictions(data);
 
-    // ✅ IMPORTANT: adjust labels kung iba sa model mo
+    // ✅ Adjust labels if needed (exact match sa model labels)
     const DOG_LABELS = new Set(["dog", "dogs"]);
-    const NOT_DOG_LABELS = new Set([
-      "not dog",
-      "not-dog",
-      "not_dog",
-      "notdogs",
-      "not dogs",
-      "person",
-      "human",
-      "vehicle",
-      "car",
-      "background",
-      "object"
-    ]);
+    const NOT_DOG_LABELS = new Set(["not dog", "not-dog", "not_dog", "notdogs", "not dogs"]);
 
     const top = predictions[0] || { class: "", confidence: 0 };
     const topLabel = String(top.class).toLowerCase();
 
-    // thresholds (tune mo)
     const DOG_MIN = 0.60;
     const NOT_DOG_MIN = 0.60;
 
-    // compute dog vs not dog scores if present
     const dogScore =
       predictions.find(p => DOG_LABELS.has(String(p.class).toLowerCase()))
         ?.confidence ?? 0;
 
-    // if your model uses a single class "not dog", ok na ito.
-    // if it outputs many non-dog classes (person/object/vehicle), we treat those as not-dog too.
-    const notDogCandidate = predictions.find(p => {
-      const cls = String(p.class).toLowerCase();
-      return NOT_DOG_LABELS.has(cls) || (!DOG_LABELS.has(cls) && cls !== "");
-    });
+    const notDogScore =
+      predictions.find(p => NOT_DOG_LABELS.has(String(p.class).toLowerCase()))
+        ?.confidence ?? 0;
 
-    const notDogScore = notDogCandidate?.confidence ?? 0;
-
-    // ✅ Decide NOT DOG
+    // If top is not-dog or not-dog score is higher enough => NOT DOG
     const isNotDog =
-      (!DOG_LABELS.has(topLabel) && top.confidence >= NOT_DOG_MIN) ||
+      (NOT_DOG_LABELS.has(topLabel) && top.confidence >= NOT_DOG_MIN) ||
       (notDogScore >= NOT_DOG_MIN && notDogScore > dogScore);
 
     if (isNotDog) {
@@ -130,7 +116,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // ✅ Decide DOG
+    // Dog decision
     const isDog =
       (DOG_LABELS.has(topLabel) && top.confidence >= DOG_MIN) ||
       (dogScore >= DOG_MIN && dogScore >= notDogScore);
@@ -144,7 +130,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // ✅ If DOG: remove generic dog/not-dog labels, keep breed-ish classes
+    // Filter out "dog" / "not dog" classes if present
     const filtered = predictions.filter(p => {
       const cls = String(p.class).toLowerCase();
       return !DOG_LABELS.has(cls) && !NOT_DOG_LABELS.has(cls);

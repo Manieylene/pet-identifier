@@ -1,4 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
+  console.log("✅ script.js loaded");
+
   const uploadBtn = document.getElementById("uploadBtn");
   const imageInput = document.getElementById("imageInput");
   const imagePreview = document.getElementById("imagePreview");
@@ -26,37 +28,8 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   analyzeBtn.addEventListener("click", async () => {
-    if (!currentFile) return;
+    console.log("✅ Analyze clicked");
 
-    analyzeBtn.disabled = true;
-    analyzeBtn.textContent = "Analyzing...";
-
-    try {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const res = await fetch("/api/upload", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ image: reader.result })
-        });
-
-        const data = await res.json();
-        if (!res.ok) throw new Error(data?.error || "API request failed");
-
-        renderResult(data);
-      };
-
-      reader.readAsDataURL(currentFile);
-    } catch (err) {
-      console.error(err);
-      alert("Analysis failed");
-    } finally {
-      analyzeBtn.disabled = false;
-      analyzeBtn.innerHTML = '<i class="fas fa-search"></i> Analyze Image';
-    }
-  });
-
-  function renderResult(data) {
     const card = document.getElementById("result-card");
     const mainBreed = document.getElementById("main-breed");
     const badge = document.getElementById("badge");
@@ -64,6 +37,81 @@ document.addEventListener("DOMContentLoaded", () => {
     const list = document.getElementById("confidence-list");
 
     card.classList.remove("hidden");
+    list.innerHTML = "";
+    mainBreed.textContent = "Working...";
+    badge.textContent = "PROCESSING";
+    badge.className = "badge mixed";
+    explanation.textContent = "Reading file...";
+
+    if (!currentFile) {
+      mainBreed.textContent = "No file";
+      badge.textContent = "ERROR";
+      explanation.textContent = "Please choose a file first.";
+      return;
+    }
+
+    analyzeBtn.disabled = true;
+    analyzeBtn.textContent = "Analyzing...";
+
+    const reader = new FileReader();
+
+    reader.onerror = () => {
+      mainBreed.textContent = "Error";
+      badge.textContent = "FAILED";
+      explanation.textContent = "Failed to read file.";
+      analyzeBtn.disabled = false;
+      analyzeBtn.innerHTML = '<i class="fas fa-search"></i> Analyze Image';
+    };
+
+    reader.onload = async () => {
+      try {
+        explanation.textContent = "Calling /api/upload ...";
+
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image: reader.result })
+        });
+
+        const rawText = await res.text();
+        console.log("✅ API status:", res.status);
+        console.log("✅ API raw:", rawText);
+
+        let data;
+        try {
+          data = JSON.parse(rawText);
+        } catch {
+          throw new Error("API did not return JSON (maybe 404 HTML). Raw: " + rawText.slice(0, 80));
+        }
+
+        if (!res.ok) {
+          throw new Error(data?.error || "API request failed");
+        }
+
+        renderResult(data);
+      } catch (err) {
+        console.error("❌ Analyze error:", err);
+
+        mainBreed.textContent = "Error";
+        badge.textContent = "FAILED";
+        badge.className = "badge mixed";
+        explanation.textContent = err?.message || "Analysis failed";
+        list.innerHTML = "";
+      } finally {
+        analyzeBtn.disabled = false;
+        analyzeBtn.innerHTML = '<i class="fas fa-search"></i> Analyze Image';
+      }
+    };
+
+    reader.readAsDataURL(currentFile);
+  });
+
+  function renderResult(data) {
+    const mainBreed = document.getElementById("main-breed");
+    const badge = document.getElementById("badge");
+    const explanation = document.getElementById("explanation");
+    const list = document.getElementById("confidence-list");
+
     list.innerHTML = "";
 
     // ✅ NOT DOG
@@ -80,8 +128,7 @@ document.addEventListener("DOMContentLoaded", () => {
       mainBreed.textContent = "Unknown / Unclear";
       badge.textContent = "UNCLEAR";
       badge.className = "badge mixed";
-      explanation.textContent =
-        "Please upload a clear photo of a dog (face or full body).";
+      explanation.textContent = "Upload a clearer dog photo (face or full body).";
       return;
     }
 
@@ -102,7 +149,7 @@ document.addEventListener("DOMContentLoaded", () => {
     badge.textContent = isMixed ? "POSSIBLE MIX" : "TOP MATCH";
     badge.className = isMixed ? "badge mixed" : "badge pure";
 
-    explanation.textContent = "Top breed look-alikes (confidence):";
+    explanation.textContent = "Top matches (confidence):";
 
     preds.forEach((p, idx) => {
       const percent = (p.confidence * 100).toFixed(1);
