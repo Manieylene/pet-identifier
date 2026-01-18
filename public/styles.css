@@ -480,14 +480,13 @@ body {
   100% { transform: rotate(360deg); }
 }
 
-/* Result Card */
-.result-card {
-  max-width: 700px;
-  margin: 50px auto;
+/* Original Result Card - Now integrated into the right panel */
+.original-result-card {
+  margin-top: 30px;
   background: var(--white);
   border-radius: var(--radius);
-  padding: 40px;
-  box-shadow: var(--shadow-lg);
+  padding: 30px;
+  box-shadow: var(--shadow);
   border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
@@ -512,7 +511,7 @@ body {
 }
 
 #main-breed {
-  font-size: 2.2rem;
+  font-size: 1.8rem;
   font-weight: 700;
   color: var(--dark);
   margin: 0;
@@ -668,13 +667,12 @@ body {
     padding: 30px;
   }
   
-  .result-card {
-    padding: 30px;
-    margin: 30px 20px;
+  #main-breed {
+    font-size: 1.6rem;
   }
   
-  #main-breed {
-    font-size: 1.9rem;
+  .original-result-card {
+    padding: 25px;
   }
 }
 
@@ -715,6 +713,10 @@ body {
   
   .image-preview-area {
     min-height: 240px;
+    padding: 20px;
+  }
+  
+  .original-result-card {
     padding: 20px;
   }
 }
