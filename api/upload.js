@@ -31,7 +31,6 @@ export default async function handler(req, res) {
     function normalizePredictions(data) {
       let preds = [];
 
-      // A) predictions is ARRAY: [{class, confidence}, ...]
       if (Array.isArray(data?.predictions)) {
         preds = data.predictions
           .map(p => ({
@@ -39,16 +38,12 @@ export default async function handler(req, res) {
             confidence: Number(p.confidence ?? p.probability ?? p.score) || 0
           }))
           .filter(p => p.class);
-      }
-      // B) predictions is OBJECT: { "label": 0.62, ... }
-      else if (data?.predictions && typeof data.predictions === "object") {
+      } else if (data?.predictions && typeof data.predictions === "object") {
         preds = Object.entries(data.predictions).map(([cls, conf]) => ({
           class: cls,
           confidence: Number(conf) || 0
         }));
-      }
-      // C) top-only format
-      else if (data?.top) {
+      } else if (data?.top) {
         preds = [{ class: data.top, confidence: Number(data.confidence) || 0 }];
       }
 
@@ -64,6 +59,7 @@ export default async function handler(req, res) {
     });
 
     const text = await rfRes.text();
+
     if (!rfRes.ok) {
       return res.status(502).json({
         error: "Roboflow failed",
@@ -71,37 +67,58 @@ export default async function handler(req, res) {
       });
     }
 
-    const data = JSON.parse(text);
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return res.status(502).json({
+        error: "Roboflow returned non-JSON",
+        details: text.slice(0, 300)
+      });
+    }
+
     const predictions = normalizePredictions(data);
 
-    // ✅ IMPORTANT: i-adjust mo ito kung iba ang exact labels ng model mo
-    // typical: "dog", "not dog"
+    // ✅ IMPORTANT: adjust labels kung iba sa model mo
     const DOG_LABELS = new Set(["dog", "dogs"]);
     const NOT_DOG_LABELS = new Set([
       "not dog",
       "not-dog",
       "not_dog",
       "notdogs",
-      "not dogs"
+      "not dogs",
+      "person",
+      "human",
+      "vehicle",
+      "car",
+      "background",
+      "object"
     ]);
 
     const top = predictions[0] || { class: "", confidence: 0 };
     const topLabel = String(top.class).toLowerCase();
 
-    // Tune thresholds
+    // thresholds (tune mo)
     const DOG_MIN = 0.60;
     const NOT_DOG_MIN = 0.60;
 
+    // compute dog vs not dog scores if present
     const dogScore =
       predictions.find(p => DOG_LABELS.has(String(p.class).toLowerCase()))
         ?.confidence ?? 0;
 
-    const notDogScore =
-      predictions.find(p => NOT_DOG_LABELS.has(String(p.class).toLowerCase()))
-        ?.confidence ?? 0;
+    // if your model uses a single class "not dog", ok na ito.
+    // if it outputs many non-dog classes (person/object/vehicle), we treat those as not-dog too.
+    const notDogCandidate = predictions.find(p => {
+      const cls = String(p.class).toLowerCase();
+      return NOT_DOG_LABELS.has(cls) || (!DOG_LABELS.has(cls) && cls !== "");
+    });
 
+    const notDogScore = notDogCandidate?.confidence ?? 0;
+
+    // ✅ Decide NOT DOG
     const isNotDog =
-      (NOT_DOG_LABELS.has(topLabel) && top.confidence >= NOT_DOG_MIN) ||
+      (!DOG_LABELS.has(topLabel) && top.confidence >= NOT_DOG_MIN) ||
       (notDogScore >= NOT_DOG_MIN && notDogScore > dogScore);
 
     if (isNotDog) {
@@ -113,6 +130,7 @@ export default async function handler(req, res) {
       });
     }
 
+    // ✅ Decide DOG
     const isDog =
       (DOG_LABELS.has(topLabel) && top.confidence >= DOG_MIN) ||
       (dogScore >= DOG_MIN && dogScore >= notDogScore);
@@ -126,7 +144,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // ✅ DOG: remove generic "dog" and "not dog" labels; keep breed-like outputs
+    // ✅ If DOG: remove generic dog/not-dog labels, keep breed-ish classes
     const filtered = predictions.filter(p => {
       const cls = String(p.class).toLowerCase();
       return !DOG_LABELS.has(cls) && !NOT_DOG_LABELS.has(cls);
