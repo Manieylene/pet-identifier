@@ -18,7 +18,7 @@ export default async function handler(req, res) {
     const MODEL_ID = process.env.ROBOFLOW_MODEL_ID; 
 
     if (!API_KEY || !MODEL_ID) {
-      return res.status(500).json({ error: "Missing Roboflow env vars" });
+      return res.status(500).json({ error: "Image analysis service is currently unavailable." });
     }
 
     const cleanBase64 = image.replace(/^data:image\/\w+;base64,/, "");
