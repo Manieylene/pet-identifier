@@ -59,7 +59,7 @@ export default async function handler(req, res) {
     const text = await rfRes.text();
     if (!rfRes.ok) {
       return res.status(502).json({
-        error: "Roboflow failed",
+        error: "The system accepts image uploads in JPG, PNG, and WEBP formats only, with a maximum file size limit of 5MB.",
         details: text.slice(0, 300)
       });
     }
